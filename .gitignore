@@ -1,0 +1,30 @@
+# Sistema
+.DS_Store
+Thumbs.db
+*.log
+hs_err_pid*
+
+# Android
+android/.gradle/
+android/.idea/
+android/.kotlin/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Escritorio (NetBeans)
+escritorio/build/
+escritorio/dist/
+escritorio/nbproject/private/
+escritorio/lib/
+
+# Datos reales y respaldos: nunca se suben
+*.sql.bak
+*.properties.local
+respaldos/
+WeatherReportBackups/
+WeatherReportReportes/
