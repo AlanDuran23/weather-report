@@ -3,7 +3,6 @@ package weatherreport_mvc.views;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.FlowLayout;
-import java.awt.Font;
 import java.io.File;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -34,10 +33,8 @@ public class MensajeExitoDialog extends JDialog {
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         setResizable(false);
 
-        JLabel lblIcono = new JLabel(archivo != null ? "\u2713" : "\u2717");
-        lblIcono.setFont(new Font("Segoe UI", Font.BOLD, 56));
-        lblIcono.setForeground(archivo != null
-                ? ColoresUI.ALERTA_NORMAL_OSC : ColoresUI.ALERTA_CRITICA_OSC);
+        // Icono dibujado: Segoe UI no trae \u2713/\u2717 y sal\u00eda un cuadro vac\u00edo
+        JLabel lblIcono = new JLabel(new IconoResultado(archivo != null));
         lblIcono.setHorizontalAlignment(JLabel.CENTER);
 
         String texto;
@@ -56,14 +53,22 @@ public class MensajeExitoDialog extends JDialog {
 
         JButton btnAbrir = null;
         if (archivo != null) {
-            btnAbrir = UIFactory.crearBotonPrimario("Abrir archivo");
-            btnAbrir.addActionListener(e -> PDFGenerator.abrir(archivo));
+            // Un respaldo .sql casi nunca tiene programa asociado: se ofrece su carpeta
+            boolean esRespaldo = archivo.getName().toLowerCase().endsWith(".sql");
+            btnAbrir = UIFactory.crearBotonPrimario(esRespaldo ? "Abrir carpeta" : "Abrir archivo");
+            btnAbrir.addActionListener(e -> {
+                if (esRespaldo) {
+                    PDFGenerator.abrirCarpeta(this, archivo);
+                } else {
+                    PDFGenerator.abrir(this, archivo);
+                }
+            });
         }
         JButton btnAceptar = UIFactory.crearBotonSecundario("Aceptar");
         btnAceptar.addActionListener(e -> dispose());
 
-        JPanel botonera = new JPanel(new FlowLayout(FlowLayout.CENTER, 14, 10));
-        botonera.setBackground(ColoresUI.FONDO_RAIZ);
+        JPanel botonera = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 6));
+        botonera.setOpaque(false);
         if (btnAbrir != null) {
             botonera.add(btnAbrir);
         }
@@ -79,5 +84,39 @@ public class MensajeExitoDialog extends JDialog {
         setContentPane(contenido);
         pack();
         setLocationRelativeTo(owner);
+    }
+
+    /** Círculo tenue con palomita (éxito) o tache (error) en el color del estado. */
+    private record IconoResultado(boolean exito) implements javax.swing.Icon {
+
+        @Override
+        public void paintIcon(Component c, java.awt.Graphics g, int x, int y) {
+            java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            java.awt.Color color = exito ? ColoresUI.ALERTA_NORMAL_OSC : ColoresUI.ALERTA_CRITICA_OSC;
+            g2.setColor(new java.awt.Color(color.getRed(), color.getGreen(), color.getBlue(), 36));
+            g2.fillOval(x, y, 56, 56);
+            g2.setColor(color);
+            g2.setStroke(new java.awt.BasicStroke(3.5f, java.awt.BasicStroke.CAP_ROUND,
+                    java.awt.BasicStroke.JOIN_ROUND));
+            if (exito) {
+                g2.drawPolyline(new int[]{x + 17, x + 25, x + 39}, new int[]{y + 29, y + 37, y + 21}, 3);
+            } else {
+                g2.drawLine(x + 20, y + 20, x + 36, y + 36);
+                g2.drawLine(x + 36, y + 20, x + 20, y + 36);
+            }
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() {
+            return 56;
+        }
+
+        @Override
+        public int getIconHeight() {
+            return 56;
+        }
     }
 }

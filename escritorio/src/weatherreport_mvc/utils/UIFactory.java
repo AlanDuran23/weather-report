@@ -41,7 +41,16 @@ public final class UIFactory {
     public static final Font FUENTE_NORMAL = new Font("Segoe UI", Font.PLAIN, 13);
     public static final Font FUENTE_NEGRITA = new Font("Segoe UI", Font.BOLD, 13);
     public static final Font FUENTE_INDICADOR = new Font("Segoe UI", Font.BOLD, 58);
-    public static final Font FUENTE_MENU = new Font("Segoe UI", Font.BOLD, 14);
+    public static final Font FUENTE_MENU = new Font("Segoe UI Semibold", Font.PLAIN, 14);
+    /** Título de cada módulo en su cabecera. */
+    public static final Font FUENTE_ENCABEZADO = new Font("Segoe UI Semibold", Font.PLAIN, 22);
+    /** Título de tarjeta o sección dentro de un módulo. */
+    public static final Font FUENTE_SECCION = new Font("Segoe UI Semibold", Font.PLAIN, 16);
+    /** Botones: semibold pesa menos que bold y sigue leyéndose como acción. */
+    public static final Font FUENTE_BOTON = new Font("Segoe UI Semibold", Font.PLAIN, 13);
+    /** Etiqueta de grupo en mayúsculas con tracking (igual que el Panel Principal). */
+    public static final Font FUENTE_ETIQUETA = new Font("Segoe UI", Font.BOLD, 11)
+            .deriveFont(java.util.Map.of(java.awt.font.TextAttribute.TRACKING, 0.08f));
     /** Título de los slides de módulos: 18. */
     public static final Font FUENTE_TITULO_SLIDE = new Font("Segoe UI", Font.BOLD, 18);
     /** Texto de los slides de módulos: 15. */
@@ -52,65 +61,106 @@ public final class UIFactory {
     private UIFactory() {
     }
 
-    /** Botón del menú lateral: mate oscuro con hover vino y halo activo. */
-    public static BotonGlow crearBotonLateral(String texto) {
-        BotonGlow b = new BotonGlow(texto, ColoresUI.LATERAL, null, null, 0);
-        b.setFont(FUENTE_MENU);
-        b.setForeground(ColoresUI.TEXTO_SECUNDARIO);
-        b.setHorizontalAlignment(SwingConstants.LEFT);
-        b.setPreferredSize(new Dimension(260, 46));
-        b.setLineaInferior(true, ColoresUI.BORDE);
-        b.setRelleno(ColoresUI.LATERAL, ColoresUI.VINO_OSCURO);
-        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        return b;
-    }
-
-    /** Botón primario con degradado vino neón y halo rubí. */
+    /** Botón primario: vino plano. Uno por pantalla, para la acción principal. */
     public static JButton crearBotonPrimario(String texto) {
-        BotonGlow b = new BotonGlow(texto, ColoresUI.VINO, null,
-                ColoresUI.RUBI, 10);
-        b.configurarGradiente(ColoresUI.VINO_OSCURO, ColoresUI.VINO_NEON);
-        b.setFont(FUENTE_NEGRITA);
+        BotonGlow b = new BotonGlow(texto, ColoresUI.ACCION, null, null, 8);
+        b.setRelleno(ColoresUI.ACCION, ColoresUI.ACCION_HOVER);
+        b.setRellenoPresionado(ColoresUI.ACCION_PRESIONADA);
+        b.setFont(FUENTE_BOTON);
         b.setForeground(ColoresUI.BLANCO);
         return b;
     }
 
-    /** Botón secundario: superficie elevada con trazo fino brillante. */
+    /** Botón secundario: superficie con trazo fino. */
     public static JButton crearBotonSecundario(String texto) {
         BotonGlow b = new BotonGlow(texto, ColoresUI.SUPERFICIE_ELEVADA,
-                ColoresUI.BORDE_CLARO, null, 10);
-        b.setRelleno(ColoresUI.SUPERFICIE_ELEVADA, new java.awt.Color(0x2E, 0x2E, 0x38));
-        b.setFont(FUENTE_NEGRITA);
+                ColoresUI.BORDE_CLARO, null, 8);
+        b.setRelleno(ColoresUI.SUPERFICIE_ELEVADA, ColoresUI.HOVER);
+        b.setRellenoPresionado(ColoresUI.SUPERFICIE);
+        b.setFont(FUENTE_BOTON);
         b.setForeground(ColoresUI.TEXTO_PRIMARIO);
         return b;
     }
 
-    /** Botón resaltado: relleno vino con borde neón, glow rubí y texto claro. */
+    /** Botón resaltado (acción secundaria importante): contorno vino, texto claro. */
     public static JButton crearBotonResaltado(String texto) {
-        BotonGlow b = new BotonGlow(texto, ColoresUI.VINO_OSCURO,
-                ColoresUI.VINO_NEON, ColoresUI.RUBI, 10);
-        b.configurarGradiente(new java.awt.Color(0x33, 0x12, 0x1C),
-                new java.awt.Color(0x4A, 0x18, 0x28));
-        b.setGlow(ColoresUI.RUBI);
-        b.setForeground(ColoresUI.DESTELLO);
-        b.setFont(FUENTE_NEGRITA);
+        BotonGlow b = new BotonGlow(texto, ColoresUI.SUPERFICIE_ELEVADA,
+                ColoresUI.ACCION, null, 8);
+        b.setRelleno(ColoresUI.SUPERFICIE_ELEVADA, new java.awt.Color(0x33, 0x1A, 0x22));
+        b.setRellenoPresionado(ColoresUI.SUPERFICIE);
+        b.setForeground(ColoresUI.TEXTO_PRIMARIO);
+        b.setFont(FUENTE_BOTON);
         return b;
     }
 
+    /** Acción destructiva: contorno rojo y texto rojo; solo se llena al pasar el cursor. */
     public static JButton crearBotonPeligro(String texto) {
-        BotonGlow b = new BotonGlow(texto, ColoresUI.ALERTA_CRITICA_OSC, null,
-                ColoresUI.ALERTA_CRITICA_OSC, 10);
-        b.setRelleno(ColoresUI.ALERTA_CRITICA_OSC,
-                new java.awt.Color(0xFF, 0x6B, 0x6B));
-        b.setFont(FUENTE_NEGRITA);
-        b.setForeground(ColoresUI.BLANCO);
+        java.awt.Color rojo = ColoresUI.ALERTA_CRITICA_OSC;
+        BotonGlow b = new BotonGlow(texto, null,
+                new java.awt.Color(rojo.getRed(), rojo.getGreen(), rojo.getBlue(), 110), null, 8);
+        b.setRelleno(null, new java.awt.Color(rojo.getRed(), rojo.getGreen(), rojo.getBlue(), 36));
+        b.setFont(FUENTE_BOTON);
+        b.setForeground(rojo);
         return b;
+    }
+
+    /** Botón de texto, sin caja (enlaces dentro de un formulario). */
+    public static JButton crearBotonTexto(String texto) {
+        BotonGlow b = new BotonGlow(texto, null, null, null, 8);
+        b.setRelleno(null, ColoresUI.HOVER);
+        b.setFont(FUENTE_BOTON);
+        b.setForeground(ColoresUI.TEXTO_SECUNDARIO);
+        b.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
+        return b;
+    }
+
+    /** Contenedor de pestañas segmentadas (Diario/Semanal/..., variables). */
+    public static JPanel crearGrupoSegmentado() {
+        EstiloUI.PanelRedondeado grupo = new EstiloUI.PanelRedondeado(10,
+                ColoresUI.CAMPO, ColoresUI.BORDE);
+        grupo.setLayout(new javax.swing.BoxLayout(grupo, javax.swing.BoxLayout.X_AXIS));
+        grupo.setBorder(BorderFactory.createEmptyBorder(3, 3, 3, 3));
+        return grupo;
+    }
+
+    /** Pestaña de un grupo segmentado. */
+    public static JButton crearPestania(String texto) {
+        BotonGlow b = new BotonGlow(texto, null, null, null, 8);
+        b.setFont(FUENTE_BOTON);
+        b.setBorder(BorderFactory.createEmptyBorder(6, 14, 6, 14));
+        aplicarEstiloPestania(b, false);
+        return b;
+    }
+
+    /** Pestaña activa: superficie elevada y texto claro; inactiva: transparente. */
+    public static void aplicarEstiloPestania(JButton boton, boolean seleccionada) {
+        if (!(boton instanceof BotonGlow b)) {
+            return;
+        }
+        if (seleccionada) {
+            b.setRelleno(ColoresUI.HOVER, ColoresUI.HOVER);
+            b.setBorde(ColoresUI.BORDE_CLARO);
+            b.setForeground(ColoresUI.TEXTO_PRIMARIO);
+        } else {
+            b.setRelleno(null, ColoresUI.SUPERFICIE);
+            b.setBorde(null);
+            b.setForeground(ColoresUI.TEXTO_SUAVE);
+        }
+        b.repaint();
     }
 
     public static JLabel crearLabelTitulo(String texto) {
         JLabel l = new JLabel(texto);
-        l.setFont(FUENTE_TITULO);
-        l.setForeground(ColoresUI.TEXTO_VINO);
+        l.setFont(FUENTE_SECCION);
+        l.setForeground(ColoresUI.TEXTO_PRIMARIO);
+        return l;
+    }
+
+    /** Etiqueta de grupo: mayúsculas pequeñas con tracking, en gris suave. */
+    public static JLabel crearEtiquetaGrupo(String texto) {
+        JLabel l = new JLabel(texto.toUpperCase());
+        l.setFont(FUENTE_ETIQUETA);
+        l.setForeground(ColoresUI.TEXTO_SUAVE);
         return l;
     }
 
@@ -135,17 +185,149 @@ public final class UIFactory {
         return t;
     }
 
-    /** Estilo oscuro para campos de entrada de texto. */
+    /**
+     * Campo de entrada hundido: fondo más oscuro que la tarjeta, esquinas
+     * redondeadas y borde vino al tener el foco. Las áreas de texto (dentro
+     * de un JScrollPane) quedan rectas; el borde lo lleva el scroll.
+     */
     public static void estilizarCampo(JTextComponent campo) {
-        campo.setOpaque(true);
-        campo.setBackground(ColoresUI.SUPERFICIE);
+        if (campo.getFont() instanceof javax.swing.plaf.UIResource) {
+            campo.setFont(FUENTE_TEXTO);
+        }
+        campo.setBackground(ColoresUI.CAMPO);
         campo.setForeground(ColoresUI.TEXTO_PRIMARIO);
         campo.setCaretColor(ColoresUI.TEXTO_PRIMARIO);
-        campo.setSelectionColor(ColoresUI.VINO_SELECCION);
+        campo.setSelectionColor(ColoresUI.SELECCION);
         campo.setSelectedTextColor(ColoresUI.BLANCO);
-        campo.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createEmptyBorder(6, 8, 6, 8),
-                BorderFactory.createLineBorder(ColoresUI.BORDE, 1)));
+        campo.setDisabledTextColor(ColoresUI.TEXTO_SUAVE);
+        if (campo instanceof JTextField) {
+            if (campo instanceof javax.swing.JPasswordField) {
+                campo.setUI(new javax.swing.plaf.basic.BasicPasswordFieldUI() {
+                    @Override
+                    protected void paintSafely(Graphics g) {
+                        EstiloUI.pintarFondoCampo(g, getComponent());
+                        super.paintSafely(g);
+                    }
+                });
+            } else if (campo instanceof javax.swing.JFormattedTextField) {
+                campo.setUI(new javax.swing.plaf.basic.BasicFormattedTextFieldUI() {
+                    @Override
+                    protected void paintSafely(Graphics g) {
+                        EstiloUI.pintarFondoCampo(g, getComponent());
+                        super.paintSafely(g);
+                    }
+                });
+            } else {
+                campo.setUI(new javax.swing.plaf.basic.BasicTextFieldUI() {
+                    @Override
+                    protected void paintSafely(Graphics g) {
+                        EstiloUI.pintarFondoCampo(g, getComponent());
+                        super.paintSafely(g);
+                    }
+                });
+            }
+            // setUI restablece colores y bordes que sean UIResource; se fijan de nuevo
+            campo.setOpaque(false);
+            campo.setBackground(ColoresUI.CAMPO);
+            campo.setForeground(ColoresUI.TEXTO_PRIMARIO);
+            campo.setCaretColor(ColoresUI.TEXTO_PRIMARIO);
+            campo.setBorder(new EstiloUI.BordeCampo(7, 10));
+            campo.addFocusListener(new java.awt.event.FocusAdapter() {
+                @Override
+                public void focusGained(java.awt.event.FocusEvent e) {
+                    campo.repaint();
+                }
+
+                @Override
+                public void focusLost(java.awt.event.FocusEvent e) {
+                    campo.repaint();
+                }
+            });
+        } else {
+            campo.setOpaque(true);
+            campo.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
+        }
+    }
+
+    /** Scroll que envuelve un área de texto: mismo fondo y borde que un campo. */
+    public static JScrollPane crearScrollCampo(JTextComponent area) {
+        JScrollPane scroll = new JScrollPane(area);
+        scroll.setBorder(BorderFactory.createLineBorder(ColoresUI.BORDE_CAMPO, 1));
+        scroll.getViewport().setBackground(ColoresUI.CAMPO);
+        estilizarScroll(scroll);
+        return scroll;
+    }
+
+    /**
+     * Barras de desplazamiento delgadas para el tema oscuro: sin flechas, pulgar
+     * gris redondeado que se aclara al pasar el cursor.
+     */
+    public static void estilizarScroll(JScrollPane scroll) {
+        // Las barras son transparentes: lo que se ve detrás es el fondo del scroll
+        scroll.setBackground(scroll.getViewport().getBackground());
+        for (javax.swing.JScrollBar barra : new javax.swing.JScrollBar[]{
+                scroll.getVerticalScrollBar(), scroll.getHorizontalScrollBar()}) {
+            barra.setUI(new BarraScrollUI());
+            barra.setOpaque(false);
+            barra.setUnitIncrement(16);
+            boolean vertical = barra.getOrientation() == javax.swing.JScrollBar.VERTICAL;
+            barra.setPreferredSize(vertical ? new Dimension(10, 0) : new Dimension(0, 10));
+        }
+        javax.swing.JPanel esquina = new javax.swing.JPanel();
+        esquina.setBackground(scroll.getViewport().getBackground());
+        scroll.setCorner(JScrollPane.LOWER_RIGHT_CORNER, esquina);
+        scroll.setCorner(JScrollPane.UPPER_RIGHT_CORNER, esquina);
+    }
+
+    private static final class BarraScrollUI extends javax.swing.plaf.basic.BasicScrollBarUI {
+
+        @Override
+        protected void configureScrollBarColors() {
+            thumbColor = ColoresUI.BORDE_CLARO;
+            trackColor = ColoresUI.SUPERFICIE;
+        }
+
+        @Override
+        protected JButton createDecreaseButton(int orientation) {
+            return botonVacio();
+        }
+
+        @Override
+        protected JButton createIncreaseButton(int orientation) {
+            return botonVacio();
+        }
+
+        private static JButton botonVacio() {
+            JButton b = new JButton();
+            b.setPreferredSize(new Dimension(0, 0));
+            b.setMinimumSize(new Dimension(0, 0));
+            b.setMaximumSize(new Dimension(0, 0));
+            return b;
+        }
+
+        @Override
+        protected Dimension getMinimumThumbSize() {
+            // Con miles de filas el pulgar quedaba de 8 px y era difícil de tomar
+            return new Dimension(32, 32);
+        }
+
+        @Override
+        protected void paintTrack(Graphics g, javax.swing.JComponent c, Rectangle r) {
+            // Pista invisible: solo se ve el pulgar
+        }
+
+        @Override
+        protected void paintThumb(Graphics g, javax.swing.JComponent c, Rectangle r) {
+            if (r.isEmpty() || !scrollbar.isEnabled()) {
+                return;
+            }
+            java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(isThumbRollover() || isDragging ? ColoresUI.GRIS_OSCURO : ColoresUI.BORDE_CLARO);
+            g2.fillRoundRect(r.x + 2, r.y + 2, r.width - 4, r.height - 4, 6, 6);
+            g2.dispose();
+        }
     }
 
     public static void estilizarSpinner(JSpinner spinner) {
@@ -209,32 +391,61 @@ private static void aplicarEstiloSpinnerRecursivo(java.awt.Component componente)
 public static void estilizarCombo(JComboBox combo) {
     combo.setFont(FUENTE_TEXTO);
     combo.setEditable(false);
-    combo.setOpaque(true);
-    combo.setBackground(ColoresUI.SUPERFICIE);
     combo.setForeground(ColoresUI.TEXTO_PRIMARIO);
     combo.setFocusable(false);
-    combo.setBorder(BorderFactory.createLineBorder(ColoresUI.BORDE, 1));
 
     combo.setUI(new BasicComboBoxUI() {
         @Override
+        public void paint(Graphics g, javax.swing.JComponent c) {
+            // Mismo fondo hundido y esquinas que los campos de texto
+            EstiloUI.pintarFondoCampo(g, c);
+            super.paint(g, c);
+        }
+
+        @Override
+        protected javax.swing.plaf.basic.ComboPopup createPopup() {
+            javax.swing.plaf.basic.BasicComboPopup popup =
+                    new javax.swing.plaf.basic.BasicComboPopup(comboBox);
+            popup.setBorder(BorderFactory.createLineBorder(ColoresUI.BORDE_CLARO, 1));
+            return popup;
+        }
+
+        @Override
         protected javax.swing.JButton createArrowButton() {
-            javax.swing.JButton arrow = new javax.swing.JButton("▾");
-            arrow.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            // La flecha se dibuja: Segoe UI no trae el carácter ▾ y salía un cuadro vacío
+            javax.swing.JButton arrow = new javax.swing.JButton() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    super.paintComponent(g);
+                    java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+                    g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                            java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(getForeground());
+                    g2.setStroke(new java.awt.BasicStroke(1.6f,
+                            java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+                    int cx = getWidth() / 2, cy = getHeight() / 2;
+                    g2.drawPolyline(new int[]{cx - 4, cx, cx + 4},
+                            new int[]{cy - 2, cy + 2, cy - 2}, 3);
+                    g2.dispose();
+                }
+            };
+            arrow.setPreferredSize(new Dimension(28, 28));
             arrow.setFocusable(false);
-            arrow.setOpaque(true);
-            arrow.setContentAreaFilled(true);
-            arrow.setBackground(ColoresUI.SUPERFICIE);
-            arrow.setForeground(ColoresUI.TEXTO_PRIMARIO);
-            arrow.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, ColoresUI.BORDE));
+            arrow.setOpaque(false);
+            arrow.setContentAreaFilled(false);
+            arrow.setForeground(ColoresUI.TEXTO_SECUNDARIO);
+            arrow.setBorder(BorderFactory.createEmptyBorder());
             return arrow;
         }
 
         @Override
         public void paintCurrentValueBackground(Graphics g, Rectangle bounds, boolean hasFocus) {
-            g.setColor(ColoresUI.SUPERFICIE);
-            g.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+            // El fondo ya lo pinta paint(): aquí se deja transparente
         }
     });
+    combo.setOpaque(false);
+    combo.setBackground(ColoresUI.CAMPO);
+    combo.setBorder(new EstiloUI.BordeCampo(3, 4));
 
     combo.setRenderer(new DefaultListCellRenderer() {
         @Override
@@ -249,18 +460,20 @@ public static void estilizarCombo(JComboBox combo) {
                     list, value, index, isSelected, cellHasFocus);
 
             lbl.setFont(FUENTE_TEXTO);
-            lbl.setOpaque(true);
-            lbl.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+            lbl.setBorder(BorderFactory.createEmptyBorder(5, 8, 5, 8));
 
             if (index == -1) {
-                lbl.setBackground(ColoresUI.SUPERFICIE);
+                // Valor mostrado en el propio combo: transparente sobre el fondo redondeado
+                lbl.setOpaque(false);
                 lbl.setForeground(ColoresUI.TEXTO_PRIMARIO);
             } else if (isSelected) {
-                lbl.setBackground(ColoresUI.VINO_OSCURO);
+                lbl.setOpaque(true);
+                lbl.setBackground(ColoresUI.HOVER);
                 lbl.setForeground(ColoresUI.BLANCO);
             } else {
-                lbl.setBackground(ColoresUI.SUPERFICIE);
-                lbl.setForeground(ColoresUI.TEXTO_PRIMARIO);
+                lbl.setOpaque(true);
+                lbl.setBackground(ColoresUI.SUPERFICIE_ELEVADA);
+                lbl.setForeground(ColoresUI.TEXTO_SECUNDARIO);
             }
 
             return lbl;
@@ -282,26 +495,129 @@ public static void estilizarCombo(JComboBox combo) {
         return EstiloUI.crearTarjeta(contenido, 14);
     }
 
+    /**
+     * Tabla de datos: texto alineado a la izquierda y cifras a la derecha con
+     * la cabecera alineada igual, filas de 34 px, hover y selección vino
+     * apagada. Las columnas numéricas se indican con {@link #columnasNumericas}.
+     */
     public static JScrollPane estilizarTabla(JTable tabla) {
-        tabla.setFont(FUENTE_TEXTO);
-        tabla.setRowHeight(28);
+        tabla.setFont(FUENTE_TEXTO.deriveFont(14f));
+        tabla.setRowHeight(34);
         tabla.setFillsViewportHeight(true);
         tabla.setShowVerticalLines(false);
         tabla.setShowHorizontalLines(true);
-        tabla.setGridColor(ColoresUI.BORDE);
+        tabla.setIntercellSpacing(new Dimension(0, 1));
+        tabla.setGridColor(ColoresUI.LINEA_TABLA);
         tabla.setBackground(ColoresUI.SUPERFICIE);
         tabla.setForeground(ColoresUI.TEXTO_PRIMARIO);
-        tabla.setSelectionBackground(ColoresUI.VINO_SELECCION);
+        tabla.setSelectionBackground(ColoresUI.SELECCION);
         tabla.setSelectionForeground(ColoresUI.BLANCO);
+        tabla.setDefaultRenderer(Object.class, new CeldaRenderer());
+        tabla.setDefaultRenderer(Number.class, new CeldaRenderer());
+
+        java.awt.event.MouseAdapter hover = new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseMoved(java.awt.event.MouseEvent e) {
+                marcarFilaHover(tabla, tabla.rowAtPoint(e.getPoint()));
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                marcarFilaHover(tabla, -1);
+            }
+        };
+        tabla.addMouseMotionListener(hover);
+        tabla.addMouseListener(hover);
+
         JTableHeader header = tabla.getTableHeader();
-        header.setFont(FUENTE_NEGRITA);
-        header.setBackground(ColoresUI.FONDO_RAIZ);
-        header.setForeground(ColoresUI.TEXTO_VINO);
+        header.setReorderingAllowed(false);
+        header.setBackground(ColoresUI.SUPERFICIE);
         header.setOpaque(true);
+        header.setDefaultRenderer(new CabeceraRenderer());
+
         JScrollPane scroll = new JScrollPane(tabla);
         scroll.getViewport().setBackground(ColoresUI.SUPERFICIE);
         scroll.setBorder(BorderFactory.createLineBorder(ColoresUI.BORDE, 1));
+        estilizarScroll(scroll);
+        JPanel esquinaCabecera = new JPanel();
+        esquinaCabecera.setBackground(ColoresUI.SUPERFICIE);
+        scroll.setCorner(JScrollPane.UPPER_RIGHT_CORNER, esquinaCabecera);
         return scroll;
+    }
+
+    /** Marca qué columnas son cifras: se alinean a la derecha (celda y cabecera). */
+    public static void columnasNumericas(JTable tabla, int... columnas) {
+        java.util.Set<Integer> set = new java.util.HashSet<>();
+        for (int c : columnas) {
+            set.add(c);
+        }
+        tabla.putClientProperty("columnasNumericas", set);
+        // Los renderers por columna pisan el default: se reponen los del tema
+        for (int i = 0; i < tabla.getColumnCount(); i++) {
+            tabla.getColumnModel().getColumn(i).setCellRenderer(null);
+        }
+        tabla.repaint();
+    }
+
+    private static boolean esNumerica(JTable tabla, int columnaVista) {
+        Object set = tabla.getClientProperty("columnasNumericas");
+        int modelo = tabla.convertColumnIndexToModel(columnaVista);
+        return set instanceof java.util.Set<?> s && s.contains(modelo);
+    }
+
+    private static void marcarFilaHover(JTable tabla, int fila) {
+        Object previa = tabla.getClientProperty("filaHover");
+        if (previa instanceof Integer p && p == fila) {
+            return;
+        }
+        tabla.putClientProperty("filaHover", fila);
+        tabla.repaint();
+    }
+
+    /** Celda con relleno lateral de 14 px, cifras tabulares a la derecha y hover. */
+    public static class CeldaRenderer extends javax.swing.table.DefaultTableCellRenderer {
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            JLabel lbl = (JLabel) super.getTableCellRendererComponent(
+                    table, value, isSelected, false, row, column);
+            lbl.setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 14));
+            boolean numerica = esNumerica(table, column);
+            lbl.setHorizontalAlignment(numerica ? SwingConstants.RIGHT : SwingConstants.LEFT);
+            Object hover = table.getClientProperty("filaHover");
+            if (isSelected) {
+                lbl.setBackground(table.getSelectionBackground());
+                lbl.setForeground(table.getSelectionForeground());
+            } else {
+                lbl.setBackground(hover instanceof Integer h && h == row
+                        ? ColoresUI.FILA_HOVER : table.getBackground());
+                lbl.setForeground(table.getForeground());
+            }
+            return lbl;
+        }
+    }
+
+    /** Cabecera de tabla: mayúsculas pequeñas en gris, alineada como su columna. */
+    private static final class CabeceraRenderer extends javax.swing.table.DefaultTableCellRenderer {
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            JLabel lbl = (JLabel) super.getTableCellRendererComponent(
+                    table, value == null ? "" : value.toString().toUpperCase(),
+                    false, false, row, column);
+            lbl.setOpaque(true);
+            lbl.setFont(FUENTE_ETIQUETA);
+            lbl.setBackground(ColoresUI.SUPERFICIE);
+            lbl.setForeground(ColoresUI.TEXTO_SUAVE);
+            lbl.setHorizontalAlignment(esNumerica(table, column)
+                    ? SwingConstants.RIGHT : SwingConstants.LEFT);
+            lbl.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createMatteBorder(0, 0, 1, 0, ColoresUI.BORDE_CLARO),
+                    BorderFactory.createEmptyBorder(11, 14, 10, 14)));
+            return lbl;
+        }
     }
 
     /** Configura una tabla con un modelo no editable. */
@@ -313,11 +629,6 @@ public static void estilizarCombo(JComboBox combo) {
             }
         };
         tabla.setModel(modelo);
-    }
-
-    /** Hover vino/glow para botones del panel lateral (integrado en BotonGlow). */
-    public static void agregarHoverLateral(JButton b) {
-        // El hover ya está integrado en BotonGlow. Sin acción adicional.
     }
 
     /** Carga un icono desde la carpeta de recursos. */

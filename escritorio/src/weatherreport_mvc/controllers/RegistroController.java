@@ -9,6 +9,7 @@ import java.util.List;
 import weatherreport_mvc.database.ConexionBD;
 import weatherreport_mvc.database.RegistroDAO;
 import weatherreport_mvc.models.RegistroMeteorologico;
+import weatherreport_mvc.utils.Bitacora;
 import weatherreport_mvc.utils.Estadistica;
 import weatherreport_mvc.utils.ImportadorArchivos;
 import weatherreport_mvc.views.IngresoManualPanel;
@@ -33,7 +34,15 @@ public class RegistroController {
             view.mostrarError("Ingrese un ID de registro válido.");
             return;
         }
-        RegistroMeteorologico registro = RegistroDAO.obtenerPorId(id);
+        RegistroMeteorologico registro;
+        try {
+            registro = RegistroDAO.obtenerPorId(id);
+        } catch (SQLException e) {
+            // Antes un fallo de conexión se leía como "No existe un registro con el ID"
+            Bitacora.error("RegistroController.cargarPorId", e);
+            view.mostrarError(ConexionBD.mensajeError(e));
+            return;
+        }
         if (registro == null) {
             view.mostrarError("No existe un registro con el ID " + id + ".");
             return;
@@ -79,20 +88,20 @@ public class RegistroController {
             return;
         }
 
-        if (RegistroDAO.existeFechaHora(fecha, hora, 0)) {
-            view.mostrarError("Ya existe un registro con esa fecha y hora.");
-            return;
-        }
-
         RegistroMeteorologico registro = new RegistroMeteorologico();
         rellenarRegistro(registro);
         registro.setObservaciones(observaciones);
 
         try {
+            if (RegistroDAO.existeFechaHora(fecha, hora, 0)) {
+                view.mostrarError("Ya existe un registro con esa fecha y hora.");
+                return;
+            }
             RegistroDAO.insertar(registro);
             view.mostrarExito("Registro guardado correctamente.");
             view.limpiarFormulario();
         } catch (SQLException e) {
+            Bitacora.error("RegistroController.guardar", e);
             view.mostrarError(ConexionBD.mensajeError(e));
         }
     }
@@ -131,22 +140,22 @@ public class RegistroController {
             return;
         }
 
-        if (RegistroDAO.existeFechaHora(fecha, hora, id)) {
-            view.mostrarError("Ya existe otro registro con esa fecha y hora.");
-            return;
-        }
-
         RegistroMeteorologico registro = new RegistroMeteorologico();
         registro.setId(id);
         rellenarRegistro(registro);
         registro.setObservaciones(observaciones);
 
         try {
+            if (RegistroDAO.existeFechaHora(fecha, hora, id)) {
+                view.mostrarError("Ya existe otro registro con esa fecha y hora.");
+                return;
+            }
             RegistroDAO.actualizar(registro);
             salirDeEdicion();
             view.mostrarExito("Registro " + id + " actualizado correctamente.");
             view.limpiarFormulario();
         } catch (SQLException e) {
+            Bitacora.error("RegistroController.actualizar", e);
             view.mostrarError(ConexionBD.mensajeError(e));
         }
     }
@@ -219,8 +228,10 @@ public class RegistroController {
             view.mostrarExito(mensaje);
             view.limpiarFormulario();
         } catch (IOException e) {
-            view.mostrarError("Error al leer el archivo:\n" + e.getMessage());
+            Bitacora.error("RegistroController.importarDesdeArchivo: " + archivo, e);
+            view.mostrarError("No se pudo leer " + archivo.getName() + ":\n" + Bitacora.mensaje(e));
         } catch (SQLException e) {
+            Bitacora.error("RegistroController.importarDesdeArchivo", e);
             view.mostrarError(ConexionBD.mensajeError(e));
         }
     }

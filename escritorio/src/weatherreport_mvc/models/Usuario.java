@@ -9,6 +9,8 @@ public class Usuario {
 
     public static final String ROL_INGENIERO = "Ingeniero";
     public static final String ROL_CONSULTA = "Consulta";
+    /** Solo Panel Principal; es el único rol que se crea desde el registro del login. */
+    public static final String ROL_BASICO = "Básico";
 
     private int id;
     private String nombreCompleto;
@@ -101,6 +103,10 @@ public class Usuario {
 
     public boolean esConsulta() {
         return ROL_CONSULTA.equals(rol);
+    }
+
+    public boolean esBasico() {
+        return ROL_BASICO.equals(rol);
     }
 
     @Override

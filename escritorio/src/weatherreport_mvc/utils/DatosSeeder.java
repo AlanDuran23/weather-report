@@ -24,12 +24,12 @@ public final class DatosSeeder {
     }
 
     public static int asegurarDatosPrueba() {
-        if (RegistroDAO.contar() > 0) {
-            return 0;
-        }
         Random rnd = new Random(2026L);
         int insertados = 0;
         try {
+            if (RegistroDAO.contar() > 0) {
+                return 0;
+            }
             LocalDate hoy = LocalDate.now();
 
             // Registros de los últimos 14 días (3 por día) para la serie semanal.
@@ -72,7 +72,7 @@ public final class DatosSeeder {
             RegistroDAO.insertar(ultimo);
             insertados++;
         } catch (SQLException e) {
-            System.err.println("DatosSeeder.asegurarDatosPrueba: " + e.getMessage());
+            Bitacora.error("DatosSeeder.asegurarDatosPrueba", e);
         }
         return insertados;
     }

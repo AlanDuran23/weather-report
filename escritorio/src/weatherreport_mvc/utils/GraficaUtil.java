@@ -4,6 +4,7 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.geom.Ellipse2D;
+import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -36,12 +37,12 @@ public final class GraficaUtil {
 
     /** Variable meteorológica seleccionable en las gráficas. */
     public enum VariableMeteorologica {
-        HUMEDAD("Humedad", "%", ColoresUI.VINO_NEON),
-        VIENTO("Viento", "km/h", ColoresUI.RUBI),
-        LLUVIA("Lluvia", "mm", ColoresUI.DESTELLO),
-        TEMPERATURA("Temperatura", "°C", ColoresUI.ALERTA_CRITICA),
-        PRESION("Presión", "hPa", ColoresUI.ALERTA_ATENCION),
-        ROCIO("Punto de rocío", "°C", ColoresUI.ALERTA_NORMAL);
+        HUMEDAD("Humedad", "%", ColoresUI.SERIE_HUMEDAD),
+        VIENTO("Viento", "km/h", ColoresUI.SERIE_VIENTO),
+        LLUVIA("Lluvia", "mm", ColoresUI.SERIE_LLUVIA),
+        TEMPERATURA("Temperatura", "°C", ColoresUI.SERIE_TEMPERATURA),
+        PRESION("Presión", "hPa", ColoresUI.SERIE_PRESION),
+        ROCIO("Punto de rocío", "°C", ColoresUI.SERIE_ROCIO);
 
         private final String nombre;
         private final String unidad;
@@ -88,7 +89,7 @@ public final class GraficaUtil {
 
     /** Gráfica de líneas: comportamiento semanal de la variable en el rango de 7 días. */
     public static ChartPanel crearPanelGraficaSemanal(LocalDate inicio, LocalDate fin,
-                                                      VariableMeteorologica variable) {
+                                                      VariableMeteorologica variable) throws SQLException {
         List<PuntoSemanal> puntos = RegistroDAO.obtenerSerieEntre(inicio, fin);
         DefaultCategoryDataset datos = new DefaultCategoryDataset();
         for (PuntoSemanal p : puntos) {
@@ -113,7 +114,7 @@ public final class GraficaUtil {
 
     /** Gráfica de líneas: valores diarios de la variable en el mes indicado. */
     public static ChartPanel crearPanelGraficaMensual(int anio, int mes,
-                                                      VariableMeteorologica variable) {
+                                                      VariableMeteorologica variable) throws SQLException {
         List<PuntoSemanal> puntos = RegistroDAO.obtenerSerieMensual(anio, mes);
         DefaultCategoryDataset datos = new DefaultCategoryDataset();
         for (PuntoSemanal p : puntos) {
@@ -135,7 +136,7 @@ public final class GraficaUtil {
     }
 
     /** Gráfica de líneas: acumulado mensual de la variable en el año indicado. */
-    public static ChartPanel crearPanelGraficaAnual(int anio, VariableMeteorologica variable) {
+    public static ChartPanel crearPanelGraficaAnual(int anio, VariableMeteorologica variable) throws SQLException {
         List<AcumuladoMes> acumulados = RegistroDAO.obtenerAcumuladoMensual(anio);
         DefaultCategoryDataset datos = new DefaultCategoryDataset();
         for (AcumuladoMes a : acumulados) {
@@ -160,7 +161,7 @@ public final class GraficaUtil {
     public static ChartPanel crearPanelGrafica(PeriodoGrafica periodo,
                                                VariableMeteorologica variable,
                                                int anio, int mes,
-                                               LocalDate inicio, LocalDate fin) {
+                                               LocalDate inicio, LocalDate fin) throws SQLException {
         return switch (periodo) {
             case SEMANAL -> crearPanelGraficaSemanal(inicio, fin, variable);
             case MENSUAL -> crearPanelGraficaMensual(anio, mes, variable);
@@ -169,7 +170,7 @@ public final class GraficaUtil {
     }
 
     /** Visualización del reporte diario: registros del día actual por hora. */
-    public static ChartPanel crearPanelReporteDiario() {
+    public static ChartPanel crearPanelReporteDiario() throws SQLException {
         LocalDateTime inicio = LocalDate.now().atStartOfDay();
         LocalDateTime fin = LocalDate.now().atTime(23, 59, 59);
         List<RegistroMeteorologico> registros = RegistroDAO.obtenerEntre(inicio, fin);
@@ -193,17 +194,17 @@ public final class GraficaUtil {
         estilizarPlot(chart);
         CategoryPlot plot = chart.getCategoryPlot();
         LineAndShapeRenderer renderer = (LineAndShapeRenderer) plot.getRenderer();
-        renderer.setSeriesPaint(0, ColoresUI.VINO_NEON);
-        renderer.setSeriesPaint(1, ColoresUI.RUBI);
-        renderer.setSeriesPaint(2, ColoresUI.DESTELLO);
+        renderer.setSeriesPaint(0, ColoresUI.SERIE_HUMEDAD);
+        renderer.setSeriesPaint(1, ColoresUI.SERIE_VIENTO);
+        renderer.setSeriesPaint(2, ColoresUI.SERIE_LLUVIA);
         for (int i = 0; i < 3; i++) {
-            renderer.setSeriesStroke(i, new BasicStroke(2.5f));
+            renderer.setSeriesStroke(i, new BasicStroke(2f));
         }
         return crearChartPanel(chart);
     }
 
     /** Visualización del resumen semanal: promedios de los últimos 7 días. */
-    public static ChartPanel crearPanelReporteSemanal() {
+    public static ChartPanel crearPanelReporteSemanal() throws SQLException {
         List<PuntoSemanal> puntos = RegistroDAO.obtenerSerieSemanal();
         DefaultCategoryDataset datos = new DefaultCategoryDataset();
         for (PuntoSemanal p : puntos) {
@@ -225,11 +226,11 @@ public final class GraficaUtil {
         estilizarPlot(chart);
         CategoryPlot plot = chart.getCategoryPlot();
         LineAndShapeRenderer renderer = (LineAndShapeRenderer) plot.getRenderer();
-        renderer.setSeriesPaint(0, ColoresUI.VINO_NEON);
-        renderer.setSeriesPaint(1, ColoresUI.RUBI);
-        renderer.setSeriesPaint(2, ColoresUI.DESTELLO);
+        renderer.setSeriesPaint(0, ColoresUI.SERIE_HUMEDAD);
+        renderer.setSeriesPaint(1, ColoresUI.SERIE_VIENTO);
+        renderer.setSeriesPaint(2, ColoresUI.SERIE_LLUVIA);
         for (int i = 0; i < 3; i++) {
-            renderer.setSeriesStroke(i, new BasicStroke(2.5f));
+            renderer.setSeriesStroke(i, new BasicStroke(2f));
         }
         return crearChartPanel(chart);
     }
@@ -263,42 +264,42 @@ public final class GraficaUtil {
     }
 
     private static void estilizarPlot(JFreeChart chart) {
-        chart.setBackgroundPaint(ColoresUI.FONDO_RAIZ);
+        chart.setBackgroundPaint(ColoresUI.SUPERFICIE);
         chart.setAntiAlias(true);
         chart.setTextAntiAlias(true);
         if (chart.getTitle() != null) {
             chart.getTitle().setPaint(ColoresUI.TEXTO_PRIMARIO);
-            chart.getTitle().setFont(new Font("SansSerif", Font.BOLD, 17));
+            chart.getTitle().setFont(new Font("Segoe UI Semibold", Font.PLAIN, 15));
         }
         if (chart.getLegend() != null) {
             chart.getLegend().setBackgroundPaint(ColoresUI.SUPERFICIE);
             chart.getLegend().setItemPaint(ColoresUI.TEXTO_SECUNDARIO);
-            chart.getLegend().setItemFont(new Font("SansSerif", Font.PLAIN, 12));
+            chart.getLegend().setItemFont(new Font("Segoe UI", Font.PLAIN, 12));
         }
         CategoryPlot plot = chart.getCategoryPlot();
         plot.setBackgroundPaint(ColoresUI.SUPERFICIE);
         plot.setOutlineVisible(false);
-        plot.setRangeGridlinePaint(new Color(0x33, 0x33, 0x40));
+        plot.setRangeGridlinePaint(ColoresUI.LINEA_TABLA);
         plot.setRangeGridlineStroke(new BasicStroke(0.8f));
-        plot.setDomainGridlinePaint(new Color(0x24, 0x24, 0x2E));
+        plot.setDomainGridlinesVisible(false);
         plot.setDomainGridlineStroke(new BasicStroke(0.5f));
 
         CategoryAxis domainAxis = plot.getDomainAxis();
         domainAxis.setAxisLinePaint(ColoresUI.BORDE_CLARO);
         domainAxis.setTickMarkPaint(ColoresUI.BORDE_CLARO);
         domainAxis.setTickLabelPaint(ColoresUI.TEXTO_SECUNDARIO);
-        domainAxis.setTickLabelFont(new Font("SansSerif", Font.PLAIN, 12));
+        domainAxis.setTickLabelFont(new Font("Segoe UI", Font.PLAIN, 12));
         domainAxis.setLabelPaint(ColoresUI.TEXTO_SECUNDARIO);
-        domainAxis.setLabelFont(new Font("SansSerif", Font.BOLD, 13));
+        domainAxis.setLabelFont(new Font("Segoe UI", Font.PLAIN, 12));
         domainAxis.setCategoryLabelPositions(CategoryLabelPositions.STANDARD);
 
         NumberAxis rangeAxis = (NumberAxis) plot.getRangeAxis();
         rangeAxis.setAxisLinePaint(ColoresUI.BORDE_CLARO);
         rangeAxis.setTickMarkPaint(ColoresUI.BORDE_CLARO);
         rangeAxis.setTickLabelPaint(ColoresUI.TEXTO_SECUNDARIO);
-        rangeAxis.setTickLabelFont(new Font("SansSerif", Font.PLAIN, 12));
+        rangeAxis.setTickLabelFont(new Font("Segoe UI", Font.PLAIN, 12));
         rangeAxis.setLabelPaint(ColoresUI.TEXTO_SECUNDARIO);
-        rangeAxis.setLabelFont(new Font("SansSerif", Font.BOLD, 13));
+        rangeAxis.setLabelFont(new Font("Segoe UI", Font.PLAIN, 12));
         rangeAxis.setAutoRangeIncludesZero(false);
         rangeAxis.setUpperMargin(0.15);
         rangeAxis.setLowerMargin(0.06);
@@ -308,7 +309,7 @@ public final class GraficaUtil {
     private static void estilizarLinea(CategoryPlot plot, VariableMeteorologica variable) {
         LineAndShapeRenderer renderer = (LineAndShapeRenderer) plot.getRenderer();
         renderer.setSeriesPaint(0, variable.color);
-        renderer.setSeriesStroke(0, new BasicStroke(3f,
+        renderer.setSeriesStroke(0, new BasicStroke(2f,
                 BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         renderer.setDefaultShapesVisible(true);
         renderer.setDefaultShape(new Ellipse2D.Double(-4.0, -4.0, 8.0, 8.0));
@@ -323,7 +324,7 @@ public final class GraficaUtil {
                 new StandardCategoryItemLabelGenerator("{2}", new DecimalFormat(formato)));
         renderer.setDefaultItemLabelsVisible(true);
         renderer.setDefaultItemLabelPaint(ColoresUI.TEXTO_PRIMARIO);
-        renderer.setDefaultItemLabelFont(new Font("SansSerif", Font.BOLD, 12));
+        renderer.setDefaultItemLabelFont(new Font("Segoe UI Semibold", Font.PLAIN, 12));
         renderer.setComputeItemLabelContrastColor(false);
         renderer.setDefaultPositiveItemLabelPosition(new ItemLabelPosition(
                 ItemLabelAnchor.OUTSIDE12, TextAnchor.BOTTOM_CENTER));

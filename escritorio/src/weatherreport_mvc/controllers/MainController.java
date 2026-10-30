@@ -2,9 +2,11 @@ package weatherreport_mvc.controllers;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ExecutionException;
 import javax.swing.SwingWorker;
 import weatherreport_mvc.models.ConfiguracionSistema;
 import weatherreport_mvc.models.Usuario;
+import weatherreport_mvc.utils.Bitacora;
 import weatherreport_mvc.utils.DatosSeeder;
 import weatherreport_mvc.views.DashboardPanel;
 import weatherreport_mvc.views.GraficasPanel;
@@ -38,11 +40,15 @@ public class MainController {
         if (usuario.esIngeniero()) {
             return true;
         }
-        // Consulta o rol desconocido: acceso de solo lectura (nunca ventana en blanco).
-        return DashboardPanel.KEY.equals(clave)
-                || HistoricoPanel.KEY.equals(clave)
-                || GraficasPanel.KEY.equals(clave)
-                || ReportesPanel.KEY.equals(clave);
+        if (usuario.esConsulta()) {
+            // Solo lectura: Panel, Histórico, Gráficas e Informe
+            return DashboardPanel.KEY.equals(clave)
+                    || HistoricoPanel.KEY.equals(clave)
+                    || GraficasPanel.KEY.equals(clave)
+                    || ReportesPanel.KEY.equals(clave);
+        }
+        // Básico o rol desconocido: lo mínimo, solo el Panel Principal (nunca ventana en blanco)
+        return DashboardPanel.KEY.equals(clave);
     }
 
     public Usuario getUsuario() {
@@ -70,6 +76,13 @@ public class MainController {
 
             @Override
             protected void done() {
+                try {
+                    get();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException e) {
+                    Bitacora.error("MainController.iniciarDatosPrueba", e.getCause());
+                }
                 view.refrescarModulos();
             }
         }.execute();

@@ -51,6 +51,10 @@ public final class ImportadorArchivos {
     }
 
     public static ResultadoImportacion importar(File archivo) throws IOException {
+        if (!archivo.isFile()) {
+            // Sin esto el mensaje era solo la ruta, sin decir qué pasó
+            throw new IOException("el archivo no existe o no se puede abrir.");
+        }
         String nombre = archivo.getName().toLowerCase();
         if (nombre.endsWith(".txt") || nombre.endsWith(".csv")) {
             return importarTexto(archivo);
@@ -265,7 +269,7 @@ public final class ImportadorArchivos {
     private static ResultadoImportacion importarExcel(File archivo) throws IOException {
         List<RegistroMeteorologico> registros = new ArrayList<>();
         List<String> errores = new ArrayList<>();
-        try (Workbook libro = WorkbookFactory.create(archivo)) {
+        try (Workbook libro = abrirLibro(archivo)) {
             Sheet hoja = libro.getSheetAt(0);
 
             int filaDatos = 0;
@@ -288,6 +292,25 @@ public final class ImportadorArchivos {
             }
         }
         return new ResultadoImportacion(registros, errores);
+    }
+
+    /**
+     * Abre el libro de Excel. POI señala los archivos dañados, cifrados o que
+     * no son Excel con excepciones no verificadas (NotOfficeXmlFileException,
+     * EncryptedDocumentException...) que nadie capturaba y la importación
+     * fallaba sin mensaje; aquí se convierten en IOException con un texto claro.
+     */
+    private static Workbook abrirLibro(File archivo) throws IOException {
+        try {
+            return WorkbookFactory.create(archivo);
+        } catch (org.apache.poi.EncryptedDocumentException e) {
+            throw new IOException("el libro de Excel está protegido con contraseña.", e);
+        } catch (RuntimeException e) {
+            throw new IOException("no es un archivo de Excel válido o está dañado.", e);
+        } catch (IOException e) {
+            // POI responde en inglés ("unsupported file type..."): se antepone el motivo
+            throw new IOException("no se pudo abrir como libro de Excel (" + e.getMessage() + ").", e);
+        }
     }
 
     private static RegistroMeteorologico leerFilaExcel(Row fila, IndicesColumnas idx, String origen) {

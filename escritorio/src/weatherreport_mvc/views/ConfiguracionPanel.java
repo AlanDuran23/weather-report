@@ -1,6 +1,8 @@
 package weatherreport_mvc.views;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.io.File;
@@ -18,7 +20,6 @@ import weatherreport_mvc.controllers.ConfiguracionController;
 import weatherreport_mvc.models.ConfiguracionSistema;
 import weatherreport_mvc.utils.ColoresUI;
 import weatherreport_mvc.utils.EstiloUI;
-import weatherreport_mvc.utils.EstiloUI.PanelRedondeado;
 import weatherreport_mvc.utils.UIFactory;
 
 /**
@@ -51,17 +52,11 @@ public class ConfiguracionPanel extends JPanel {
     }
 
     private void construirInterfaz() {
-        PanelRedondeado encabezado = EstiloUI.crearPanelDegradadoVino();
-        encabezado.setBorder(BorderFactory.createEmptyBorder(18, 20, 8, 20));
+        JPanel encabezado = EstiloUI.crearEncabezadoModulo("Información del Sistema",
+                "Datos de la estación y carpetas donde se guardan reportes y respaldos");
 
-        JLabel lblTitulo = new JLabel("Información del Sistema");
-        lblTitulo.setFont(UIFactory.FUENTE_TITULO_SLIDE);
-        lblTitulo.setForeground(ColoresUI.BLANCO);
-        encabezado.add(lblTitulo, BorderLayout.NORTH);
-
-        JPanel contenedor = new JPanel(new GridLayout(1, 2, 14, 0));
-        contenedor.setBackground(ColoresUI.FONDO_RAIZ);
-        contenedor.setBorder(BorderFactory.createEmptyBorder(18, 20, 10, 20));
+        JPanel tarjetas = new JPanel(new GridLayout(1, 2, 16, 0));
+        tarjetas.setOpaque(false);
 
         JPanel cardEstacion = tarjetaCampos("Estación meteorológica",
                 filaCampo("Nombre de la estación:", txtNombreEstacion, null),
@@ -73,43 +68,51 @@ public class ConfiguracionPanel extends JPanel {
                 filaCampo("Carpeta de respaldos:", txtRutaRespaldos,
                         e -> seleccionarCarpeta(txtRutaRespaldos, "Carpeta de respaldos")));
 
-        contenedor.add(cardEstacion);
-        contenedor.add(cardRutas);
+        tarjetas.add(cardEstacion);
+        tarjetas.add(cardRutas);
+
+        // El botón va justo debajo de los campos que guarda, no al fondo de la ventana
+        JPanel acciones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        acciones.setOpaque(false);
+        JButton btnAplicar = UIFactory.crearBotonPrimario("Aplicar cambios");
+        btnAplicar.addActionListener(e -> aplicar());
+        acciones.add(btnAplicar);
+
+        JPanel bloque = new JPanel(new BorderLayout(0, 16));
+        bloque.setOpaque(false);
+        bloque.add(tarjetas, BorderLayout.CENTER);
+        bloque.add(acciones, BorderLayout.SOUTH);
+
+        JPanel contenedor = new JPanel(new BorderLayout());
+        contenedor.setBackground(ColoresUI.FONDO_RAIZ);
+        contenedor.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        contenedor.add(bloque, BorderLayout.NORTH);
 
         JScrollPane scroll = new JScrollPane(contenedor);
         scroll.setBorder(null);
         scroll.getViewport().setBackground(ColoresUI.FONDO_RAIZ);
-        scroll.getVerticalScrollBar().setUnitIncrement(16);
-
-        JPanel pie = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
-        pie.setBackground(ColoresUI.FONDO_RAIZ);
-        pie.setBorder(BorderFactory.createEmptyBorder(0, 20, 12, 20));
-
-        JButton btnAplicar = UIFactory.crearBotonPrimario("Aplicar Cambios");
-        btnAplicar.addActionListener(e -> aplicar());
-        pie.add(btnAplicar);
+        UIFactory.estilizarScroll(scroll);
 
         add(encabezado, BorderLayout.NORTH);
         add(scroll, BorderLayout.CENTER);
-        add(pie, BorderLayout.SOUTH);
     }
 
     /** Tarjeta con título al inicio y varias filas de campos agrupadas. */
     private JPanel tarjetaCampos(String titulo, JPanel... filas) {
         JPanel tarjeta = EstiloUI.crearPanelTarjeta();
-        tarjeta.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
+        tarjeta.setBorder(BorderFactory.createEmptyBorder(22, 24, 24, 24));
 
         JLabel lblTitulo = UIFactory.crearLabelTitulo(titulo);
-        lblTitulo.setFont(UIFactory.FUENTE_TITULO_SLIDE);
 
         JPanel cuerpo = new JPanel();
         cuerpo.setOpaque(false);
         cuerpo.setLayout(new BoxLayout(cuerpo, BoxLayout.Y_AXIS));
-        cuerpo.add(Box.createVerticalStrut(6));
-        for (JPanel fila : filas) {
-            cuerpo.add(fila);
-            cuerpo.add(Box.createVerticalStrut(16));
+        for (int i = 0; i < filas.length; i++) {
+            cuerpo.add(Box.createVerticalStrut(i == 0 ? 16 : 18));
+            cuerpo.add(filas[i]);
         }
+        // El espacio sobrante queda abajo; sin esto BoxLayout estira los campos
+        cuerpo.add(Box.createVerticalGlue());
 
         tarjeta.add(lblTitulo, BorderLayout.NORTH);
         tarjeta.add(cuerpo, BorderLayout.CENTER);
@@ -119,17 +122,23 @@ public class ConfiguracionPanel extends JPanel {
     /** Fila de un campo: etiqueta sobre el campo y un botón de búsqueda opcional. */
     private JPanel filaCampo(String etiqueta, JTextField campo,
                              java.awt.event.ActionListener accionBuscar) {
-        JLabel lbl = UIFactory.crearLabel(etiqueta);
+        JLabel lbl = UIFactory.crearLabel(etiqueta.replace(":", ""));
+        lbl.setFont(UIFactory.FUENTE_NORMAL);
         lbl.setForeground(ColoresUI.TEXTO_SECUNDARIO);
 
         JPanel linea = new JPanel(new BorderLayout(8, 0));
         linea.setOpaque(false);
         linea.add(campo, BorderLayout.CENTER);
         if (accionBuscar != null) {
-            JButton btnBuscar = UIFactory.crearBotonSecundario("...");
+            JButton btnBuscar = UIFactory.crearBotonSecundario("Examinar…");
             btnBuscar.addActionListener(accionBuscar);
             linea.add(btnBuscar, BorderLayout.EAST);
         }
+
+        // Alto fijo y alineado a la izquierda para que BoxLayout no lo estire ni lo centre
+        linea.setMaximumSize(new Dimension(Integer.MAX_VALUE, linea.getPreferredSize().height));
+        linea.setAlignmentX(Component.LEFT_ALIGNMENT);
+        lbl.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JPanel fila = new JPanel();
         fila.setOpaque(false);
@@ -137,6 +146,8 @@ public class ConfiguracionPanel extends JPanel {
         fila.add(lbl);
         fila.add(Box.createVerticalStrut(6));
         fila.add(linea);
+        fila.setAlignmentX(Component.LEFT_ALIGNMENT);
+        fila.setMaximumSize(new Dimension(Integer.MAX_VALUE, fila.getPreferredSize().height));
         return fila;
     }
 

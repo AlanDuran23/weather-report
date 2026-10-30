@@ -52,6 +52,34 @@ public final class ColoresUI {
     /** Vino translúcido para selección de tabla (vidrio ahumado). */
     public static final Color VINO_SELECCION = new Color(0x9E, 0x00, 0x27);
 
+    // ---- Sala de guardia: el vino marca la acción y la ubicación; el rojo queda para alertas ----
+    /** Relleno de la acción principal (vino institucional, sin neón). */
+    public static final Color ACCION = new Color(0x9E, 0x1B, 0x36);
+    public static final Color ACCION_HOVER = new Color(0xB3, 0x21, 0x3F);
+    public static final Color ACCION_PRESIONADA = new Color(0x7E, 0x13, 0x2A);
+    /** Anillo de foco y riel del módulo activo. */
+    public static final Color ENFOQUE = new Color(0xD0, 0x30, 0x55);
+    /** Hover de botones secundarios y filas de navegación. */
+    public static final Color HOVER = new Color(0x2A, 0x2A, 0x34);
+    /** Fondo de campos de entrada: hundido, más oscuro que la tarjeta. */
+    public static final Color CAMPO = new Color(0x13, 0x13, 0x18);
+    public static final Color BORDE_CAMPO = new Color(0x36, 0x36, 0x42);
+    /** Fila seleccionada en tablas: vino apagado, no compite con las alertas. */
+    public static final Color SELECCION = new Color(0x45, 0x18, 0x25);
+    /** Fila bajo el cursor en tablas. */
+    public static final Color FILA_HOVER = new Color(0x21, 0x21, 0x28);
+    /** Líneas entre filas de tabla, más suaves que BORDE. */
+    public static final Color LINEA_TABLA = new Color(0x25, 0x25, 0x2E);
+
+    // ---- Series de gráficas: un color fijo por variable, ninguno de estado ----
+    // Validado para daltonismo sobre SUPERFICIE (humedad/viento/lluvia van juntos en reportes).
+    public static final Color SERIE_HUMEDAD = new Color(0x39, 0x87, 0xE5);
+    public static final Color SERIE_VIENTO = new Color(0xD9, 0x59, 0x26);
+    public static final Color SERIE_LLUVIA = new Color(0x19, 0x9E, 0x70);
+    public static final Color SERIE_TEMPERATURA = new Color(0xC9, 0x85, 0x00);
+    public static final Color SERIE_PRESION = new Color(0xD5, 0x51, 0x81);
+    public static final Color SERIE_ROCIO = new Color(0x90, 0x85, 0xE9);
+
     // ---- Alertas (originales y variantes luminosas para fondo oscuro) ----
     public static final Color ALERTA_NORMAL = new Color(0x1E, 0x88, 0x3C);
     public static final Color ALERTA_ATENCION = new Color(0xF9, 0xA8, 0x25);

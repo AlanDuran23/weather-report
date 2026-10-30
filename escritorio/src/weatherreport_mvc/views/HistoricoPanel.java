@@ -9,7 +9,6 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JOptionPane;
-import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
@@ -19,14 +18,10 @@ import weatherreport_mvc.utils.Estadistica;
 import weatherreport_mvc.utils.ColoresUI;
 import weatherreport_mvc.utils.DateUtil;
 import weatherreport_mvc.utils.EstiloUI;
-import weatherreport_mvc.utils.EstiloUI.PanelRedondeado;
 import weatherreport_mvc.utils.UIFactory;
-import java.awt.Component;
 import java.text.MessageFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import javax.swing.SwingConstants;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
 
 /**
@@ -86,17 +81,12 @@ public class HistoricoPanel extends JPanel {
     }
 
     private void construirInterfaz() {
-        PanelRedondeado encabezado = EstiloUI.crearPanelDegradadoVino();
-        encabezado.setBorder(BorderFactory.createEmptyBorder(18, 20, 8, 20));
-        
-        JLabel lblTitulo = new JLabel("Histórico de Registros");
-        lblTitulo.setFont(UIFactory.FUENTE_TITULO_SLIDE);
-        lblTitulo.setForeground(ColoresUI.BLANCO);
-        encabezado.add(lblTitulo, BorderLayout.NORTH);
-        
-        JPanel barra = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        JPanel encabezado = EstiloUI.crearEncabezadoModulo("Histórico de Registros",
+                "Consulte, filtre y exporte las mediciones guardadas. Doble clic en una fila para ver el detalle.");
+
+        JPanel barra = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         barra.setBackground(ColoresUI.FONDO_RAIZ);
-        barra.setBorder(BorderFactory.createEmptyBorder(10, 20, 8, 20));
+        barra.setBorder(BorderFactory.createEmptyBorder(16, 12, 12, 20));
 
         barra.add(UIFactory.crearLabel("Campo:"));
         barra.add(cmbCampo);
@@ -140,73 +130,50 @@ public class HistoricoPanel extends JPanel {
 
         JPanel pie = new JPanel(new BorderLayout());
         pie.setBackground(ColoresUI.FONDO_RAIZ);
-        pie.setBorder(BorderFactory.createEmptyBorder(6, 20, 12, 20));
-        lblContador.setFont(UIFactory.FUENTE_TEXTO_NEGRITA);
-        lblContador.setForeground(ColoresUI.TEXTO_SECUNDARIO);
+        pie.setBorder(BorderFactory.createEmptyBorder(12, 20, 14, 20));
+        lblContador.setFont(UIFactory.FUENTE_NORMAL);
+        lblContador.setForeground(ColoresUI.TEXTO_SUAVE);
         pie.add(lblContador, BorderLayout.WEST);
         pie.add(acciones, BorderLayout.EAST);
 
+        // La tabla respeta el mismo margen de 20 px que la cabecera y los filtros
+        JPanel zonaTabla = new JPanel(new BorderLayout());
+        zonaTabla.setBackground(ColoresUI.FONDO_RAIZ);
+        zonaTabla.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 20));
+        zonaTabla.add(UIFactory.estilizarTabla(tabla), BorderLayout.CENTER);
+
         add(superior, BorderLayout.NORTH);
-        add(UIFactory.estilizarTabla(tabla), BorderLayout.CENTER);
+        add(zonaTabla, BorderLayout.CENTER);
         add(pie, BorderLayout.SOUTH);
     }
-    
+
     private void configurarTabla() {
-    tabla.setRowHeight(30);
-    tabla.setAutoCreateRowSorter(false);
-    tabla.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        tabla.setAutoCreateRowSorter(false);
+        tabla.setAutoResizeMode(JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS);
+        // ID y lecturas son cifras: a la derecha para comparar por magnitud
+        UIFactory.columnasNumericas(tabla, 0, 3, 4, 5, 6);
 
-    DefaultTableCellRenderer centro = new DefaultTableCellRenderer();
-    centro.setHorizontalAlignment(SwingConstants.CENTER);
-
-    for (int i = 0; i < tabla.getColumnCount(); i++) {
-        tabla.getColumnModel().getColumn(i).setCellRenderer(centro);
-    }
-
-    tabla.addMouseListener(new java.awt.event.MouseAdapter() {
-        @Override
-        public void mouseClicked(java.awt.event.MouseEvent e) {
-            if (e.getClickCount() == 2) {
-                mostrarDetalleSeleccionado();
+        tabla.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    mostrarDetalleSeleccionado();
+                }
             }
-        }
-    });
+        });
 
-    JTableHeader header = tabla.getTableHeader();
-    header.setReorderingAllowed(false);
-    header.setResizingAllowed(false);
-    header.setDefaultRenderer(new DefaultTableCellRenderer() {
-        @Override
-        public Component getTableCellRendererComponent(
-                javax.swing.JTable table,
-                Object value,
-                boolean isSelected,
-                boolean hasFocus,
-                int row,
-                int column) {
+        JTableHeader header = tabla.getTableHeader();
+        header.setResizingAllowed(false);
 
-            JLabel lbl = (JLabel) super.getTableCellRendererComponent(
-                    table, value, isSelected, hasFocus, row, column);
-
-            lbl.setHorizontalAlignment(SwingConstants.CENTER);
-            lbl.setOpaque(true);
-            lbl.setBackground(ColoresUI.FONDO_RAIZ);
-            lbl.setForeground(ColoresUI.TEXTO_VINO);
-            lbl.setFont(UIFactory.FUENTE_NEGRITA);
-            lbl.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 1, ColoresUI.BORDE));
-            return lbl;
-        }
-    });
-
-    tabla.getColumnModel().getColumn(0).setPreferredWidth(130);   // ID
-    tabla.getColumnModel().getColumn(1).setPreferredWidth(110);   // Fecha
-    tabla.getColumnModel().getColumn(2).setPreferredWidth(110);   // Hora
-    tabla.getColumnModel().getColumn(3).setPreferredWidth(145);   // Temp ext
-    tabla.getColumnModel().getColumn(4).setPreferredWidth(145);   // Humedad
-    tabla.getColumnModel().getColumn(5).setPreferredWidth(145);   // Viento
-    tabla.getColumnModel().getColumn(6).setPreferredWidth(145);   // Presión
-    tabla.getColumnModel().getColumn(7).setPreferredWidth(300);   // Observaciones
-}
+        tabla.getColumnModel().getColumn(0).setPreferredWidth(90);    // ID
+        tabla.getColumnModel().getColumn(1).setPreferredWidth(120);   // Fecha
+        tabla.getColumnModel().getColumn(2).setPreferredWidth(110);   // Hora
+        tabla.getColumnModel().getColumn(3).setPreferredWidth(140);   // Temp ext
+        tabla.getColumnModel().getColumn(4).setPreferredWidth(130);   // Humedad
+        tabla.getColumnModel().getColumn(5).setPreferredWidth(130);   // Viento
+        tabla.getColumnModel().getColumn(6).setPreferredWidth(140);   // Presión
+        tabla.getColumnModel().getColumn(7).setPreferredWidth(360);   // Observaciones
+    }
 
     private void mostrarDetalleSeleccionado() {
         int fila = tabla.getSelectedRow();
@@ -255,6 +222,17 @@ public class HistoricoPanel extends JPanel {
             });
         }
         lblContador.setText(registros.size() + " registros");
+        lblContador.setForeground(ColoresUI.TEXTO_SUAVE);
+        lblContador.setToolTipText(null);
+    }
+
+    /** La consulta falló: tabla vacía y el motivo en el pie, no un engañoso "0 registros". */
+    public void mostrarErrorCarga(String detalle) {
+        registrosActuales = List.of();
+        modelo.setRowCount(0);
+        lblContador.setText("No se pudieron cargar los registros. " + detalle);
+        lblContador.setForeground(ColoresUI.ALERTA_ATENCION_OSC);
+        lblContador.setToolTipText(null);
     }
 
     public void cargarTodos() {

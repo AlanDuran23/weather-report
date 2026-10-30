@@ -33,7 +33,7 @@ public class UsuarioDAO {
         return null;
     }
 
-    public static boolean existeUsuario(String usuario) {
+    public static boolean existeUsuario(String usuario) throws SQLException {
         String sql = "SELECT COUNT(*) FROM usuarios WHERE usuario = ?";
         try (Connection conn = ConexionBD.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -43,14 +43,12 @@ public class UsuarioDAO {
                     return rs.getInt(1) > 0;
                 }
             }
-        } catch (SQLException e) {
-            System.err.println("UsuarioDAO.existeUsuario: " + e.getMessage());
         }
         return false;
     }
 
     /** Indica si otro usuario (distinto de idExcluido) ya usa ese nombre. */
-    public static boolean existeUsuarioOtro(String usuario, int idExcluido) {
+    public static boolean existeUsuarioOtro(String usuario, int idExcluido) throws SQLException {
         String sql = "SELECT COUNT(*) FROM usuarios WHERE usuario = ? AND id <> ?";
         try (Connection conn = ConexionBD.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -61,13 +59,11 @@ public class UsuarioDAO {
                     return rs.getInt(1) > 0;
                 }
             }
-        } catch (SQLException e) {
-            System.err.println("UsuarioDAO.existeUsuarioOtro: " + e.getMessage());
         }
         return false;
     }
 
-    public static List<Usuario> obtenerTodos() {
+    public static List<Usuario> obtenerTodos() throws SQLException {
         List<Usuario> lista = new ArrayList<>();
         String sql = "SELECT id, nombre_completo, usuario, contrasena_hash, rol, "
                 + "fecha_registro, activo FROM usuarios ORDER BY id ASC";
@@ -77,13 +73,11 @@ public class UsuarioDAO {
             while (rs.next()) {
                 lista.add(mapear(rs));
             }
-        } catch (SQLException e) {
-            System.err.println("UsuarioDAO.obtenerTodos: " + e.getMessage());
         }
         return lista;
     }
 
-    public static Usuario obtenerPorId(int id) {
+    public static Usuario obtenerPorId(int id) throws SQLException {
         String sql = "SELECT id, nombre_completo, usuario, contrasena_hash, rol, "
                 + "fecha_registro, activo FROM usuarios WHERE id = ?";
         try (Connection conn = ConexionBD.getConnection();
@@ -94,8 +88,6 @@ public class UsuarioDAO {
                     return mapear(rs);
                 }
             }
-        } catch (SQLException e) {
-            System.err.println("UsuarioDAO.obtenerPorId: " + e.getMessage());
         }
         return null;
     }
@@ -142,7 +134,7 @@ public class UsuarioDAO {
     }
 
     /** Cantidad de cuentas activas con rol Ingeniero. */
-    public static int contarIngenierosActivos() {
+    public static int contarIngenierosActivos() throws SQLException {
         String sql = "SELECT COUNT(*) FROM usuarios WHERE rol = ? AND activo = 1";
         try (Connection conn = ConexionBD.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -152,8 +144,6 @@ public class UsuarioDAO {
                     return rs.getInt(1);
                 }
             }
-        } catch (SQLException e) {
-            System.err.println("UsuarioDAO.contarIngenierosActivos: " + e.getMessage());
         }
         return 0;
     }
@@ -198,7 +188,7 @@ public class UsuarioDAO {
     }
 
     /** @return true si el código coincide con el guardado y aún no expiró. */
-    public static boolean validarCodigoRecuperacion(String usuario, String hashCodigo) {
+    public static boolean validarCodigoRecuperacion(String usuario, String hashCodigo) throws SQLException {
         String sql = "SELECT codigo_expiracion FROM usuarios "
                 + "WHERE usuario = ? AND activo = 1 AND codigo_recuperacion = ?";
         try (Connection conn = ConexionBD.getConnection();
@@ -211,8 +201,6 @@ public class UsuarioDAO {
                     return exp != null && exp.toLocalDateTime().isAfter(LocalDateTime.now());
                 }
             }
-        } catch (SQLException e) {
-            System.err.println("UsuarioDAO.validarCodigoRecuperacion: " + e.getMessage());
         }
         return false;
     }

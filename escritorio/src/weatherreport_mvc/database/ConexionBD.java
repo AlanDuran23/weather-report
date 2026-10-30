@@ -4,7 +4,11 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import weatherreport_mvc.models.ConfiguracionSistema;
+import weatherreport_mvc.utils.Bitacora;
 
 /**
  * Administra la conexión a la base de datos MySQL.
@@ -20,6 +24,9 @@ public final class ConexionBD {
     private static String nombreBD = "weather_db";
 
     private static final ConfiguracionSistema CONFIG = ConfiguracionSistema.cargar();
+
+    private static final String SQL_MODE = "NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION";
+    private static final ZoneId ZONA_HORARIA = ZoneId.of("America/Mexico_City");
 
     /** DDL de la tabla de registros meteorológicos (una fila por medición). */
     private static final String CREAR_TABLA_REPORT = "CREATE TABLE IF NOT EXISTS report ("
@@ -61,10 +68,31 @@ public final class ConexionBD {
             throw new SQLException("No se encontró el driver MySQL JDBC.", e);
         }
         String url = "jdbc:mysql://" + host + ":" + puerto + "/" + nombreBD
-                + "?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
+                + "?sslMode=" + modoSsl() + "&serverTimezone=UTC&allowPublicKeyRetrieval=true"
                 + "&characterEncoding=utf8&useUnicode=true"
                 + "&connectTimeout=5000";
-        return DriverManager.getConnection(url, usuario, contrasena);
+        Connection conn = DriverManager.getConnection(url, usuario, contrasena);
+        // Mismo modo y hora que el MariaDB de XAMPP: Aiven trae sql_mode ANSI (comillas
+        // dobles = columnas) y hora UTC, y las fechas de 'report' estan en hora local
+        String offset = ZonedDateTime.now(ZONA_HORARIA).getOffset().getId();
+        try (Statement st = conn.createStatement()) {
+            st.execute("SET SESSION sql_mode = '" + SQL_MODE + "', time_zone = '"
+                    + ("Z".equals(offset) ? "+00:00" : offset) + "'");
+        } catch (SQLException e) {
+            conn.close();
+            throw e;
+        }
+        return conn;
+    }
+
+    /**
+     * En la propia computadora (XAMPP, sin SSL) cifra solo si el servidor lo permite;
+     * con un servidor remoto (Aiven) exige SSL y falla antes que mandar la contraseña sin cifrar.
+     */
+    private static String modoSsl() {
+        String h = host == null ? "" : host.trim().toLowerCase();
+        boolean local = h.isEmpty() || h.equals("localhost") || h.equals("127.0.0.1") || h.equals("::1");
+        return local ? "PREFERRED" : "REQUIRED";
     }
 
     public static boolean probarConexion() {
@@ -87,7 +115,7 @@ public final class ConexionBD {
             migrarColumnasRecuperacion(conn);
             asegurarTablaReport(conn);
         } catch (SQLException e) {
-            System.err.println("ConexionBD.asegurarEsquema: " + e.getMessage());
+            Bitacora.error("ConexionBD.asegurarEsquema", e);
         }
     }
 
@@ -98,13 +126,13 @@ public final class ConexionBD {
                 return;
             }
         } catch (SQLException e) {
-            System.err.println("ConexionBD.asegurarTablaReport: " + e.getMessage());
+            Bitacora.error("ConexionBD.asegurarTablaReport", e);
             return;
         }
         try (java.sql.Statement st = conn.createStatement()) {
             st.executeUpdate(CREAR_TABLA_REPORT);
         } catch (SQLException e) {
-            System.err.println("ConexionBD.asegurarTablaReport: " + e.getMessage());
+            Bitacora.error("ConexionBD.asegurarTablaReport", e);
         }
     }
 
@@ -114,7 +142,7 @@ public final class ConexionBD {
             st.executeUpdate(sql);
             st.executeUpdate("UPDATE usuarios SET rol = 'Ingeniero' WHERE rol = 'Administrador'");
         } catch (SQLException e) {
-            System.err.println("ConexionBD.migrarRol: " + e.getMessage());
+            Bitacora.error("ConexionBD.migrarRol", e);
         }
     }
 
@@ -125,13 +153,13 @@ public final class ConexionBD {
                 return;
             }
         } catch (SQLException e) {
-            System.err.println("ConexionBD.migrarColumnaHash: " + e.getMessage());
+            Bitacora.error("ConexionBD.migrarColumnaHash", e);
             return;
         }
         try (java.sql.Statement st = conn.createStatement()) {
             st.executeUpdate("ALTER TABLE usuarios MODIFY contrasena_hash VARCHAR(255) NOT NULL");
         } catch (SQLException e) {
-            System.err.println("ConexionBD.migrarColumnaHash: " + e.getMessage());
+            Bitacora.error("ConexionBD.migrarColumnaHash", e);
         }
     }
 
@@ -148,7 +176,7 @@ public final class ConexionBD {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("ConexionBD.migrarColumnasRecuperacion: " + e.getMessage());
+            Bitacora.error("ConexionBD.migrarColumnasRecuperacion", e);
             return;
         }
         try (java.sql.Statement st = conn.createStatement()) {
@@ -159,11 +187,30 @@ public final class ConexionBD {
                 st.executeUpdate("ALTER TABLE usuarios ADD COLUMN codigo_expiracion DATETIME NULL");
             }
         } catch (SQLException e) {
-            System.err.println("ConexionBD.migrarColumnasRecuperacion: " + e.getMessage());
+            Bitacora.error("ConexionBD.migrarColumnasRecuperacion", e);
         }
     }
 
+    /**
+     * Mensaje para el usuario. Si no hay conexión (SQLState 08xxx) se explica
+     * en español qué revisar, en lugar del texto largo del driver ("Communications
+     * link failure...", que queda completo en la bitácora).
+     */
     public static String mensajeError(SQLException e) {
+        if (esFalloDeConexion(e)) {
+            return "No hay conexión con la base de datos (MySQL en " + host + ":" + puerto
+                    + "). Verifique que el servicio de MySQL esté activo.";
+        }
         return "Error de base de datos: " + e.getMessage();
+    }
+
+    public static boolean esFalloDeConexion(SQLException e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof SQLException sql && sql.getSQLState() != null
+                    && sql.getSQLState().startsWith("08")) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -1,12 +1,15 @@
 package weatherreport_mvc.controllers;
 
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import org.jfree.chart.ChartPanel;
+import weatherreport_mvc.database.ConexionBD;
 import weatherreport_mvc.database.RegistroDAO;
+import weatherreport_mvc.utils.Bitacora;
 import weatherreport_mvc.utils.GraficaUtil;
 import weatherreport_mvc.utils.GraficaUtil.PeriodoGrafica;
 import weatherreport_mvc.utils.GraficaUtil.VariableMeteorologica;
@@ -37,7 +40,14 @@ public class GraficasController {
 
     /** Ajusta el año, mes y rango inicial a partir de los datos disponibles. */
     private void definirValoresIniciales() {
-        LocalDate ultima = RegistroDAO.obtenerUltimaFecha();
+        LocalDate ultima;
+        try {
+            ultima = RegistroDAO.obtenerUltimaFecha();
+        } catch (SQLException e) {
+            // Sin conexión se parte de hoy; cargar() mostrará el error en la gráfica
+            Bitacora.error("GraficasController.definirValoresIniciales", e);
+            ultima = null;
+        }
         if (ultima == null) {
             anio = LocalDate.now().getYear();
             mes = LocalDate.now().getMonthValue();
@@ -52,7 +62,12 @@ public class GraficasController {
     }
 
     public void cargar() {
-        view.mostrarGrafica(GraficaUtil.crearPanelGrafica(periodo, variable, anio, mes, inicio, fin));
+        try {
+            view.mostrarGrafica(GraficaUtil.crearPanelGrafica(periodo, variable, anio, mes, inicio, fin));
+        } catch (SQLException e) {
+            Bitacora.error("GraficasController.cargar", e);
+            view.mostrarError(ConexionBD.mensajeError(e));
+        }
     }
 
     public void seleccionarPeriodo(PeriodoGrafica periodo) {
@@ -84,7 +99,13 @@ public class GraficasController {
     /** Años disponibles (descendentes): con datos más el año actual y el anterior. */
     public List<Integer> obtenerAnios() {
         int anioActual = LocalDate.now().getYear();
-        LinkedHashSet<Integer> unicos = new LinkedHashSet<>(RegistroDAO.obtenerAnios());
+        LinkedHashSet<Integer> unicos = new LinkedHashSet<>();
+        try {
+            unicos.addAll(RegistroDAO.obtenerAnios());
+        } catch (SQLException e) {
+            // Sin conexión el selector ofrece al menos el año actual y el anterior
+            Bitacora.error("GraficasController.obtenerAnios", e);
+        }
         unicos.add(anioActual);
         unicos.add(anioActual - 1);
         List<Integer> anios = new ArrayList<>(unicos);

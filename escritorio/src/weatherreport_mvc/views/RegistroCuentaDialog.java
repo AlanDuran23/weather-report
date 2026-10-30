@@ -1,7 +1,6 @@
 package weatherreport_mvc.views;
 
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -19,8 +18,8 @@ import weatherreport_mvc.utils.ColoresUI;
 import weatherreport_mvc.utils.UIFactory;
 
 /**
- * Diálogo modal para crear una cuenta de consulta (solo lectura) desde la
- * vista de inicio de sesión. El rol queda fijo en "Consulta".
+ * Diálogo modal para crear una cuenta básica (solo Panel Principal) desde la
+ * vista de inicio de sesión. El rol queda fijo en "Básico".
  */
 public class RegistroCuentaDialog extends JDialog {
 
@@ -33,7 +32,7 @@ public class RegistroCuentaDialog extends JDialog {
     private final JLabel lblMensaje;
 
     public RegistroCuentaDialog(LoginView owner, LoginController controller) {
-        super(owner, "Crear cuenta de consulta", ModalityType.APPLICATION_MODAL);
+        super(owner, "Crear cuenta", ModalityType.APPLICATION_MODAL);
         this.controller = controller;
 
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
@@ -49,8 +48,8 @@ public class RegistroCuentaDialog extends JDialog {
 
         construirInterfaz();
         pack();
-        setMinimumSize(new Dimension(430, 360));
-        setSize(430, 370);
+        // Alto según el contenido (los campos cambian de tamaño con el tema); ancho mínimo fijo
+        setSize(Math.max(getWidth(), 430), getHeight());
         setLocationRelativeTo(owner);
     }
 
@@ -67,8 +66,8 @@ public class RegistroCuentaDialog extends JDialog {
         int fila = 0;
 
         JLabel lblInfo = UIFactory.crearLabel(
-                "<html>Las cuentas creadas aquí son de <b>consulta</b>: "
-                + "solo podrán ver la información, sin poder modificar nada.</html>");
+                "<html><body style='width:360px'>Las cuentas creadas aquí son <b>básicas</b>: "
+                + "solo podrán ver el Panel Principal. Si necesita más acceso, pídalo a un Ingeniero.</html>");
         lblInfo.setForeground(ColoresUI.TEXTO_SECUNDARIO);
         gbc.gridx = 0;
         gbc.gridy = fila++;
@@ -145,7 +144,7 @@ public class RegistroCuentaDialog extends JDialog {
     }
 
     private void guardar() {
-        String error = controller.crearCuentaConsulta(
+        String error = controller.crearCuentaBasica(
                 txtNombre.getText(),
                 txtUsuario.getText(),
                 new String(txtContrasena.getPassword()),
@@ -153,7 +152,7 @@ public class RegistroCuentaDialog extends JDialog {
 
         if (error == null) {
             javax.swing.JOptionPane.showMessageDialog(this,
-                    "Cuenta de consulta creada correctamente. Ya puede iniciar sesión.",
+                    "Cuenta creada correctamente. Ya puede iniciar sesión.",
                     "Cuenta creada", javax.swing.JOptionPane.INFORMATION_MESSAGE);
             dispose();
         } else {

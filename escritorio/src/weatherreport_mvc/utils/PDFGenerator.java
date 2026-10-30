@@ -6,6 +6,7 @@ import java.awt.Desktop;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -15,6 +16,7 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -123,7 +125,12 @@ public final class PDFGenerator {
 
     public static File generarReporteDiario(String estacion, String ubicacion,
                                             LocalDate dia, File destino) throws IOException {
-        List<RegistroMeteorologico> registros = RegistroDAO.obtenerPorDia(dia);
+        List<RegistroMeteorologico> registros;
+        try {
+            registros = RegistroDAO.obtenerPorDia(dia);
+        } catch (SQLException e) {
+            throw new IOException("no se pudo leer la base de datos: " + e.getMessage(), e);
+        }
         try (PDDocument doc = new PDDocument()) {
             Lienzo lienzo = new Lienzo(doc);
             escribirEncabezado(lienzo, "Reporte Diario", estacion, ubicacion,
@@ -177,8 +184,12 @@ public final class PDFGenerator {
             case MENSUAL -> "Resumen Mensual";
             default -> "Resumen";
         };
-        List<RegistroMeteorologico> registros = RegistroDAO.obtenerEntre(
-                desde.atStartOfDay(), hasta.atTime(23, 59, 59));
+        List<RegistroMeteorologico> registros;
+        try {
+            registros = RegistroDAO.obtenerEntre(desde.atStartOfDay(), hasta.atTime(23, 59, 59));
+        } catch (SQLException e) {
+            throw new IOException("no se pudo leer la base de datos: " + e.getMessage(), e);
+        }
         try (PDDocument doc = new PDDocument()) {
             Lienzo lienzo = new Lienzo(doc);
             escribirEncabezado(lienzo, titulo, estacion, ubicacion,
@@ -443,13 +454,47 @@ public final class PDFGenerator {
         return sb.toString();
     }
 
-    public static void abrir(File archivo) {
+    /**
+     * Abre el archivo con el programa predeterminado de Windows. Si no hay
+     * programa asociado (lo normal con un respaldo .sql) abre la carpeta que
+     * lo contiene, y si tampoco se puede lo dice: antes el botón no hacía nada.
+     */
+    public static void abrir(Component padre, File archivo) {
+        if (!archivo.exists()) {
+            JOptionPane.showMessageDialog(padre, "El archivo ya no existe:\n" + archivo.getAbsolutePath(),
+                    "Abrir archivo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
+            JOptionPane.showMessageDialog(padre, "Este equipo no permite abrir archivos desde la "
+                    + "aplicación. Ábralo manualmente:\n" + archivo.getAbsolutePath(),
+                    "Abrir archivo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         try {
-            if (Desktop.isDesktopSupported()) {
-                Desktop.getDesktop().open(archivo);
-            }
-        } catch (IOException e) {
-            System.err.println("No se pudo abrir el PDF: " + e.getMessage());
+            Desktop.getDesktop().open(archivo);
+            return;
+        } catch (IOException | RuntimeException e) {
+            Bitacora.error("PDFGenerator.abrir: " + archivo, e);
+        }
+        if (abrirCarpeta(padre, archivo)) {
+            JOptionPane.showMessageDialog(padre, "No hay un programa asociado a este tipo de "
+                    + "archivo. Se abrió la carpeta que lo contiene.",
+                    "Abrir archivo", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    /** Abre en el Explorador la carpeta del archivo; avisa y devuelve false si no puede. */
+    public static boolean abrirCarpeta(Component padre, File archivo) {
+        File carpeta = archivo.getAbsoluteFile().getParentFile();
+        try {
+            Desktop.getDesktop().open(carpeta);
+            return true;
+        } catch (IOException | RuntimeException e) {
+            Bitacora.error("PDFGenerator.abrirCarpeta: " + carpeta, e);
+            JOptionPane.showMessageDialog(padre, "No se pudo abrir la carpeta:\n" + carpeta
+                    + "\n" + Bitacora.mensaje(e), "Abrir carpeta", JOptionPane.ERROR_MESSAGE);
+            return false;
         }
     }
 

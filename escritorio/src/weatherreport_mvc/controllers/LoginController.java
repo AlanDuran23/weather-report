@@ -4,6 +4,7 @@ import java.sql.SQLException;
 import weatherreport_mvc.database.ConexionBD;
 import weatherreport_mvc.database.UsuarioDAO;
 import weatherreport_mvc.models.Usuario;
+import weatherreport_mvc.utils.Bitacora;
 import weatherreport_mvc.utils.HashUtil;
 import weatherreport_mvc.views.LoginView;
 import weatherreport_mvc.views.MainView;
@@ -13,7 +14,7 @@ import weatherreport_mvc.views.RegistroCuentaDialog;
 /**
  * Controlador del módulo de inicio de sesión. Valida las credenciales contra
  * la base de datos y, en caso de éxito, abre la ventana principal. También
- * permite crear cuentas de solo consulta y canjear un código de recuperación
+ * permite crear cuentas básicas (solo Panel Principal) y canjear un código de recuperación
  * generado por un Ingeniero desde Gestión de Usuarios.
  */
 public class LoginController {
@@ -46,9 +47,8 @@ public class LoginController {
                 UsuarioDAO.cambiarContrasena(usuario, HashUtil.hashContrasena(contrasena));
             }
         } catch (SQLException e) {
-            view.mostrarError("No se pudo conectar a la base de datos. "
-                    + ConexionBD.mensajeError(e)
-                    + ". Verifique que el servicio de MySQL esté activo.");
+            Bitacora.error("LoginController", e);
+            view.mostrarError(ConexionBD.mensajeError(e));
             return;
         }
 
@@ -95,12 +95,13 @@ public class LoginController {
             UsuarioDAO.limpiarCodigoRecuperacion(u);
             return null;
         } catch (SQLException e) {
+            Bitacora.error("LoginController", e);
             return "No se pudo cambiar la contraseña: " + ConexionBD.mensajeError(e);
         }
     }
 
     /** @return null si fue exitoso, o un mensaje de error. */
-    public String crearCuentaConsulta(String nombre, String usuario, String contrasena,
+    public String crearCuentaBasica(String nombre, String usuario, String contrasena,
                                       String confirmacion) {
         if (nombre == null || nombre.trim().isEmpty()) {
             return "El nombre completo es obligatorio.";
@@ -114,19 +115,22 @@ public class LoginController {
         if (!contrasena.equals(confirmacion)) {
             return "Las contraseñas no coinciden.";
         }
-        if (UsuarioDAO.existeUsuario(usuario.trim())) {
-            return "El nombre de usuario ya está registrado.";
-        }
         Usuario u = new Usuario();
         u.setNombreCompleto(nombre.trim());
         u.setUsuario(usuario.trim());
         u.setContrasenaHash(HashUtil.hashContrasena(contrasena));
-        u.setRol(Usuario.ROL_CONSULTA);
+        // Desde el login solo se crean cuentas Básico; Ingeniero y Consulta los asigna un Ingeniero
+        u.setRol(Usuario.ROL_BASICO);
         u.setActivo(true);
         try {
+            // Dentro del try: si la BD falla, antes se tomaba como "no existe"
+            if (UsuarioDAO.existeUsuario(usuario.trim())) {
+                return "El nombre de usuario ya está registrado.";
+            }
             UsuarioDAO.insertar(u);
             return null;
         } catch (SQLException e) {
+            Bitacora.error("LoginController", e);
             return "No se pudo crear la cuenta: " + ConexionBD.mensajeError(e);
         }
     }

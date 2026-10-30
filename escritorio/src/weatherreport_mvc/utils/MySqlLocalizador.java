@@ -2,6 +2,7 @@ package weatherreport_mvc.utils;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -34,8 +35,15 @@ public final class MySqlLocalizador {
         String ruta = ejecutable.trim();
         String nombre = nombreEjecutable(ruta);
         // La clave es la ruta configurada: si cambia en Configuración se vuelve a buscar.
-        if (CACHE.containsKey(ruta)) {
-            return CACHE.get(ruta);
+        String enCache = CACHE.get(ruta);
+        if (enCache != null) {
+            if (new File(enCache).isFile()) {
+                return enCache;
+            }
+            // MySQL se movió o desinstaló: sin esto se intentaba ejecutar una ruta
+            // inexistente y el usuario veía "CreateProcess error=2"
+            Bitacora.aviso("MySqlLocalizador", "ya no existe " + enCache + "; se vuelve a buscar");
+            CACHE.remove(ruta);
         }
         String hallado = buscar(ruta, nombre);
         if (hallado != null) {
@@ -115,8 +123,9 @@ public final class MySqlLocalizador {
             } finally {
                 p.destroy();
             }
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             // No se pudo consultar el PATH; se continúa con las ubicaciones típicas.
+            Bitacora.error("MySqlLocalizador.buscarEnPath: " + comando + " " + nombre, e);
         }
         return null;
     }

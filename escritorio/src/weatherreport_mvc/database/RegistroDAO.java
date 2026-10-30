@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.Map;
 import weatherreport_mvc.models.RegistroMeteorologico;
+import weatherreport_mvc.utils.Bitacora;
 import weatherreport_mvc.utils.DateUtil;
 import weatherreport_mvc.utils.Estadistica;
 
@@ -115,7 +116,7 @@ public class RegistroDAO {
         }
     }
 
-    public static RegistroMeteorologico obtenerPorId(int id) {
+    public static RegistroMeteorologico obtenerPorId(int id) throws SQLException {
         String sql = "SELECT " + COLUMNAS_SELECT + " FROM report WHERE id = ? LIMIT 1";
         try (Connection conn = ConexionBD.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -125,9 +126,8 @@ public class RegistroDAO {
                     return mapear(rs);
                 }
             }
-        } catch (SQLException e) {
-            System.err.println("RegistroDAO.obtenerPorId: " + e.getMessage());
         }
+        // null solo significa "no existe"; un fallo de la BD ahora llega como SQLException
         return null;
     }
 
@@ -143,7 +143,7 @@ public class RegistroDAO {
     }
 
     /** Indica si ya hay un registro con esa fecha y hora (distinto de idExcluido). */
-    public static boolean existeFechaHora(LocalDate fecha, LocalTime hora, int idExcluido) {
+    public static boolean existeFechaHora(LocalDate fecha, LocalTime hora, int idExcluido) throws SQLException {
         for (RegistroMeteorologico r : obtenerTodos()) {
             if (r.getId() != idExcluido && r.getFecha().equals(fecha)
                     && r.getHora().equals(hora)) {
@@ -159,17 +159,18 @@ public class RegistroDAO {
      * (se compara su CHECKSUM, que se calcula en el servidor), para que el
      * refresco periódico del Dashboard y las gráficas no transfieran y
      * conviertan toda la tabla cada vez.
+     *
+     * <p>Si la base de datos no responde lanza la excepción: antes devolvía una
+     * lista vacía y la aplicación mostraba "sin datos" cuando en realidad no
+     * había conexión (y el aviso de alerta desaparecía).</p>
      */
-    public static synchronized List<RegistroMeteorologico> obtenerTodos() {
+    public static synchronized List<RegistroMeteorologico> obtenerTodos() throws SQLException {
         try (Connection conn = ConexionBD.getConnection()) {
             Long firma = firmaTabla(conn);
             if (firma == null || !firma.equals(firmaCache) || cache == null) {
                 cache = leerTodos(conn);
                 firmaCache = firma;
             }
-        } catch (SQLException e) {
-            System.err.println("RegistroDAO.obtenerTodos: " + e.getMessage());
-            return new ArrayList<>();
         }
         return new ArrayList<>(cache);
     }
@@ -185,7 +186,8 @@ public class RegistroDAO {
                 return rs.wasNull() ? null : valor;
             }
         } catch (SQLException e) {
-            System.err.println("RegistroDAO.firmaTabla: " + e.getMessage());
+            // Sin firma solo se pierde la caché: se relee la tabla completa
+            Bitacora.error("RegistroDAO.firmaTabla", e);
         }
         return null;
     }
@@ -205,7 +207,7 @@ public class RegistroDAO {
         return lista;
     }
 
-    public static List<RegistroMeteorologico> buscar(String texto, Integer mes, String campo) {
+    public static List<RegistroMeteorologico> buscar(String texto, Integer mes, String campo) throws SQLException {
         List<RegistroMeteorologico> lista = obtenerTodos();
         if (texto != null && !texto.trim().isEmpty()) {
             String patron = texto.trim().toLowerCase();
@@ -263,7 +265,7 @@ public class RegistroDAO {
         }
     }
 
-    public static List<RegistroMeteorologico> obtenerPorDia(LocalDate dia) {
+    public static List<RegistroMeteorologico> obtenerPorDia(LocalDate dia) throws SQLException {
         List<RegistroMeteorologico> lista = obtenerTodos();
         lista.removeIf(r -> r.getFecha() == null || r.getHora() == null
                 || !r.getFecha().equals(dia));
@@ -271,7 +273,7 @@ public class RegistroDAO {
         return lista;
     }
 
-    public static List<RegistroMeteorologico> obtenerEntre(LocalDateTime inicio, LocalDateTime fin) {
+    public static List<RegistroMeteorologico> obtenerEntre(LocalDateTime inicio, LocalDateTime fin) throws SQLException {
         List<RegistroMeteorologico> lista = obtenerTodos();
         lista.removeIf(r -> r.getFecha() == null || r.getHora() == null);
         lista.removeIf(r -> {
@@ -283,12 +285,12 @@ public class RegistroDAO {
         return lista;
     }
 
-    public static RegistroMeteorologico obtenerUltimo() {
+    public static RegistroMeteorologico obtenerUltimo() throws SQLException {
         List<RegistroMeteorologico> lista = obtenerTodos();
         return lista.isEmpty() ? null : lista.get(0);
     }
 
-    public static long contar() {
+    public static long contar() throws SQLException {
         String sql = "SELECT COUNT(*) FROM report";
         try (Connection conn = ConexionBD.getConnection();
                 Statement st = conn.createStatement();
@@ -296,14 +298,12 @@ public class RegistroDAO {
             if (rs.next()) {
                 return rs.getLong(1);
             }
-        } catch (SQLException e) {
-            System.err.println("RegistroDAO.contar: " + e.getMessage());
         }
         return 0;
     }
 
     /** Promedios por día de los últimos 7 días (la lluvia es el total del día). */
-    public static List<PuntoSemanal> obtenerSerieSemanal() {
+    public static List<PuntoSemanal> obtenerSerieSemanal() throws SQLException {
         LocalDate hoy = LocalDate.now();
         return obtenerSerieEntre(hoy.minusDays(6), hoy);
     }
@@ -331,7 +331,7 @@ public class RegistroDAO {
     }
 
     /** Resumen mensual del año indicado: lluvia acumulada y promedios de humedad y viento. */
-    public static List<AcumuladoMes> obtenerAcumuladoMensual(int anio) {
+    public static List<AcumuladoMes> obtenerAcumuladoMensual(int anio) throws SQLException {
         Map<Integer, List<RegistroMeteorologico>> porMes = new LinkedHashMap<>();
         for (RegistroMeteorologico r : obtenerTodos()) {
             LocalDate d = r.getFecha();
@@ -355,7 +355,7 @@ public class RegistroDAO {
     }
 
     /** Resumen anual: lluvia acumulada y promedios de humedad y viento por año. */
-    public static List<AcumuladoAnio> obtenerAcumuladoAnual() {
+    public static List<AcumuladoAnio> obtenerAcumuladoAnual() throws SQLException {
         Map<Integer, List<RegistroMeteorologico>> porAnio = new LinkedHashMap<>();
         for (RegistroMeteorologico r : obtenerTodos()) {
             LocalDate d = r.getFecha();
@@ -379,7 +379,7 @@ public class RegistroDAO {
     }
 
     /** Años distintos con registros, ordenados de forma descendente. */
-    public static List<Integer> obtenerAnios() {
+    public static List<Integer> obtenerAnios() throws SQLException {
         Map<Integer, Boolean> porAnio = new LinkedHashMap<>();
         for (RegistroMeteorologico r : obtenerTodos()) {
             LocalDate d = r.getFecha();
@@ -393,13 +393,13 @@ public class RegistroDAO {
     }
 
     /** Última fecha con registros; {@code null} si no hay datos. */
-    public static LocalDate obtenerUltimaFecha() {
+    public static LocalDate obtenerUltimaFecha() throws SQLException {
         List<RegistroMeteorologico> todos = obtenerTodos();
         return todos.isEmpty() ? null : todos.get(0).getFecha();
     }
 
     /** Valores por día en el rango [inicio, fin]: promedios y lluvia total del día. */
-    public static List<PuntoSemanal> obtenerSerieEntre(LocalDate inicio, LocalDate fin) {
+    public static List<PuntoSemanal> obtenerSerieEntre(LocalDate inicio, LocalDate fin) throws SQLException {
         List<PuntoSemanal> lista = new ArrayList<>();
         Map<LocalDate, List<RegistroMeteorologico>> porDia = new LinkedHashMap<>();
         for (RegistroMeteorologico r : obtenerTodos()) {
@@ -415,7 +415,7 @@ public class RegistroDAO {
     }
 
     /** Valores por día del mes indicado: promedios y lluvia total del día. */
-    public static List<PuntoSemanal> obtenerSerieMensual(int anio, int mes) {
+    public static List<PuntoSemanal> obtenerSerieMensual(int anio, int mes) throws SQLException {
         LocalDate inicio = LocalDate.of(anio, mes, 1);
         return obtenerSerieEntre(inicio, inicio.withDayOfMonth(inicio.lengthOfMonth()));
     }

@@ -12,6 +12,7 @@ import java.awt.Insets;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
@@ -20,8 +21,8 @@ import java.util.function.Consumer;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -37,13 +38,12 @@ import weatherreport_mvc.models.ConfiguracionSistema;
 import weatherreport_mvc.models.RegistroMeteorologico;
 import weatherreport_mvc.utils.Estadistica;
 import weatherreport_mvc.utils.AlertaUtil;
+import weatherreport_mvc.utils.Bitacora;
 import weatherreport_mvc.utils.AlertaUtil.Nivel;
 import weatherreport_mvc.utils.ColoresUI;
 import weatherreport_mvc.utils.DateUtil;
 import weatherreport_mvc.utils.EstiloUI;
-import weatherreport_mvc.utils.EstiloUI.PanelRedondeado;
 import weatherreport_mvc.utils.UIFactory;
-import javax.swing.JScrollBar;
 
 /**
  * Módulo 2 - Ingreso de Datos. Formulario con JTextField manuales para
@@ -173,23 +173,18 @@ public class IngresoManualPanel extends JPanel {
     }
 
     private void construirInterfaz() {
-        PanelRedondeado encabezado = EstiloUI.crearPanelDegradadoVino();
-        encabezado.setBorder(BorderFactory.createEmptyBorder(18, 20, 8, 20));
-
-        JLabel lblTitulo = new JLabel("Ingreso de Datos");
-        lblTitulo.setFont(UIFactory.FUENTE_TITULO_SLIDE);
-        lblTitulo.setForeground(ColoresUI.BLANCO);
-        encabezado.add(lblTitulo, BorderLayout.NORTH);
+        JPanel encabezado = EstiloUI.crearEncabezadoModulo("Ingreso de Datos",
+                "Capture una lectura de la estación o cargue un registro por su ID para corregirlo");
 
         JPanel contenido = new JPanel(new GridBagLayout());
         contenido.setBackground(ColoresUI.FONDO_RAIZ);
-        contenido.setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
+        contenido.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         GridBagConstraints gc = new GridBagConstraints();
         gc.gridy = 0;
         gc.fill = GridBagConstraints.BOTH;
         gc.weighty = 1;
-        gc.weightx = 1.4;
+        gc.weightx = 1.6;
         gc.gridx = 0;
         gc.insets = new Insets(0, 0, 0, 8);
         contenido.add(construirFormulario(), gc);
@@ -203,28 +198,22 @@ public class IngresoManualPanel extends JPanel {
         add(contenido, BorderLayout.CENTER);
     }
 
+    /**
+     * Formulario en dos columnas con la etiqueta sobre el campo: la mitad de
+     * filas que antes. Las acciones quedan fijas al pie de la tarjeta para que
+     * Guardar siempre esté a la vista, sin desplazarse.
+     */
     private JPanel construirFormulario() {
         JPanel tarjeta = EstiloUI.crearPanelTarjeta();
-        tarjeta.setBorder(BorderFactory.createEmptyBorder(18, 24, 18, 24));
 
-        JPanel grid = new JPanel(new GridBagLayout());
+        JPanel grid = new PanelAnchoVista();
         grid.setOpaque(false);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(6, 8, 6, 8);
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        grid.setLayout(new BoxLayout(grid, BoxLayout.Y_AXIS));
+        grid.setBorder(BorderFactory.createEmptyBorder(20, 24, 24, 24));
 
-        int fila = 0;
-        gbc.gridx = 0;
-        gbc.gridy = fila;
-        grid.add(UIFactory.crearLabel("ID del registro:"), gbc);
-        gbc.gridx = 1;
-        grid.add(txtId, gbc);
-
-        gbc.gridx = 2;
-        gbc.gridwidth = 2;
-        gbc.insets = new Insets(6, 24, 6, 8);
+        // Registro: ID para cargar/actualizar, fecha y hora de la lectura
         JButton btnActualizarRegistro = UIFactory.crearBotonResaltado("Actualizar registro");
+        btnActualizarRegistro.setToolTipText("Carga el registro con este ID; si ya está cargado, guarda los cambios");
         btnActualizarRegistro.addActionListener(e -> {
             if (controller.isEnEdicion()) {
                 controller.actualizar();
@@ -232,227 +221,168 @@ public class IngresoManualPanel extends JPanel {
                 controller.cargarPorId();
             }
         });
-        grid.add(btnActualizarRegistro, gbc);
-        gbc.gridwidth = 1;
-        gbc.insets = new Insets(6, 8, 6, 8);
+        JPanel filaId = new JPanel(new BorderLayout(8, 0));
+        filaId.setOpaque(false);
+        filaId.add(txtId, BorderLayout.CENTER);
+        filaId.add(btnActualizarRegistro, BorderLayout.EAST);
 
-        fila++;
-        gbc.gridx = 0;
-        gbc.gridy = fila;
-        grid.add(UIFactory.crearLabel("Fecha:"), gbc);
-        gbc.gridx = 1;
-        grid.add(txtFecha, gbc);
+        // El ID comparte celda con su botón: recibe más ancho que fecha y hora
+        JPanel registro = new JPanel(new GridBagLayout());
+        registro.setOpaque(false);
+        GridBagConstraints rc = new GridBagConstraints();
+        rc.fill = GridBagConstraints.HORIZONTAL;
+        rc.weightx = 1.6;
+        registro.add(campo("ID del registro", filaId), rc);
+        rc.insets = new Insets(0, 16, 0, 0);
+        rc.weightx = 1;
+        registro.add(campo("Fecha (dd/MM/yyyy)", txtFecha), rc);
+        rc.weightx = 0.7;
+        registro.add(campo("Hora (HH:mm)", txtHora), rc);
+        agregarSeccion(grid, "Registro", registro);
 
-        gbc.gridx = 2;
-        gbc.insets = new Insets(6, 24, 6, 8);
-        grid.add(UIFactory.crearLabel("Hora:"), gbc);
-        gbc.gridx = 3;
-        grid.add(txtHora, gbc);
+        agregarSeccion(grid, "Exterior", columnas(
+                "Temperatura exterior (°C)", txtTemp,
+                "Humedad relativa (%)", txtHumedad,
+                "Temperatura máxima (°C)", txtHiTemp,
+                "Temperatura mínima (°C)", txtLowTemp,
+                "Punto de rocío (°C)", txtDew,
+                "Sensación térmica (°C)", txtChill,
+                "Índice de calor (°C)", txtHeat,
+                "Índice THW (°C)", txtThw));
 
-        fila++;
-        agregarGrupo(grid, gbc, fila, "EXTERIOR");
+        agregarSeccion(grid, "Viento", columnas(
+                "Velocidad promedio (km/h)", txtViento,
+                "Dirección", txtDirViento,
+                "Ráfaga máxima (km/h)", txtRafaga,
+                "Dirección de la ráfaga", txtDirRafaga,
+                "Recorrido del viento (km)", txtRecorrido));
 
-        fila++;
-        agregarCampo(grid, gbc, fila, "Temperatura exterior (°C):", txtTemp);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Temperatura máxima (°C):", txtHiTemp);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Temperatura mínima (°C):", txtLowTemp);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Punto de rocío (°C):", txtDew);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Sensación térmica (°C):", txtChill);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Índice de calor (°C):", txtHeat);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Índice THW (°C):", txtThw);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Humedad relativa (%):", txtHumedad);
+        agregarSeccion(grid, "Presión y lluvia", columnas(
+                "Presión barométrica (hPa)", txtBar,
+                "Lluvia acumulada (mm)", txtLluvia,
+                "Tasa de lluvia (mm/h)", txtRainRate,
+                "Grados día calefacción", txtHeatDD,
+                "Grados día refrigeración", txtCoolDD));
 
-        fila++;
-        agregarGrupo(grid, gbc, fila, "VIENTO");
+        agregarSeccion(grid, "Interior", columnas(
+                "Temperatura interior (°C)", txtInTemp,
+                "Humedad interior (%)", txtInHum,
+                "Punto de rocío interior (°C)", txtInDew,
+                "Índice de calor interior (°C)", txtInHeat,
+                "EMC interior (%)", txtInEmc,
+                "Densidad del aire (kg/m³)", txtInDensidad));
 
-        fila++;
-        agregarCampo(grid, gbc, fila, "Velocidad promedio (km/h):", txtViento);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Dirección:", txtDirViento);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Recorrido del viento (km):", txtRecorrido);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Ráfaga máxima (km/h):", txtRafaga);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Dirección de la ráfaga:", txtDirRafaga);
+        agregarSeccion(grid, "Sensores", columnas(
+                "Muestras de viento", txtWindSamp,
+                "Estado ISS (iss_tx)", txtIssTx,
+                "Intervalo de archivo (min)", txtArcInt,
+                "Calidad de recepción (%)", txtRecept));
 
-        fila++;
-        agregarGrupo(grid, gbc, fila, "PRESIÓN Y LLUVIA");
+        JScrollPane scrollObs = UIFactory.crearScrollCampo(txtObservaciones);
+        scrollObs.setPreferredSize(new Dimension(460, 110));
+        agregarSeccion(grid, "Observaciones", scrollObs);
 
-        fila++;
-        agregarCampo(grid, gbc, fila, "Presión barométrica (hPa):", txtBar);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Lluvia acumulada (mm):", txtLluvia);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Tasa de lluvia (mm/h):", txtRainRate);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Grados día calefacción:", txtHeatDD);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Grados día refrigeración:", txtCoolDD);
+        JScrollPane scrollForm = new JScrollPane(grid);
+        scrollForm.setBorder(null);
+        scrollForm.setOpaque(false);
+        scrollForm.getViewport().setOpaque(false);
+        scrollForm.setHorizontalScrollBarPolicy(
+                javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        UIFactory.estilizarScroll(scrollForm);
 
-        fila++;
-        agregarGrupo(grid, gbc, fila, "INTERIOR");
-
-        fila++;
-        agregarCampo(grid, gbc, fila, "Temperatura interior (°C):", txtInTemp);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Humedad interior (%):", txtInHum);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Punto de rocío interior (°C):", txtInDew);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Índice de calor interior (°C):", txtInHeat);
-        fila++;
-        agregarCampo(grid, gbc, fila, "EMC interior (%):", txtInEmc);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Densidad del aire (kg/m³):", txtInDensidad);
-
-        fila++;
-        agregarGrupo(grid, gbc, fila, "SENSORES");
-
-        fila++;
-        agregarCampo(grid, gbc, fila, "Muestras de viento:", txtWindSamp);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Estado ISS (iss_tx):", txtIssTx);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Intervalo de archivo (min):", txtArcInt);
-        fila++;
-        agregarCampo(grid, gbc, fila, "Calidad de recepción (%):", txtRecept);
-
-        fila++;
-        agregarGrupo(grid, gbc, fila, "OBSERVACIONES");
-
-        fila++;
-        gbc.gridx = 0;
-        gbc.gridy = fila;
-        gbc.gridwidth = 4;
-        gbc.anchor = GridBagConstraints.NORTHWEST;
-        gbc.weighty = 1;
-        gbc.fill = GridBagConstraints.BOTH;
-        gbc.insets = new Insets(6, 8, 6, 8);
-
-        JScrollPane scrollObs = new JScrollPane(txtObservaciones);
-        scrollObs.setPreferredSize(new Dimension(460, 120));
-        scrollObs.setMinimumSize(new Dimension(460, 90));
-        estilizarBarraScroll(scrollObs);
-        grid.add(scrollObs, gbc);
-
-        gbc.gridwidth = 1;
-        gbc.weighty = 0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.WEST;
-
-        fila++;
-        gbc.gridy = fila;
-        gbc.gridx = 0;
-        gbc.gridwidth = 4;
-        JPanel botones = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        botones.setOpaque(false);
+        // Pie fijo: acción principal, acciones secundarias y el mensaje de resultado
         btnGuardar = UIFactory.crearBotonPrimario("Guardar Registro");
-        btnGuardar.setPreferredSize(new Dimension(180, 40));
         btnGuardar.addActionListener(e -> controller.guardar());
         JButton btnImportar = UIFactory.crearBotonSecundario("Importar TXT/Excel");
-        btnImportar.setPreferredSize(new Dimension(150, 40));
         btnImportar.addActionListener(e -> controller.importarDesdeArchivo());
-        JButton btnLimpiar = UIFactory.crearBotonSecundario("Limpiar");
-        btnLimpiar.setPreferredSize(new Dimension(120, 40));
+        JButton btnLimpiar = UIFactory.crearBotonTexto("Limpiar");
         btnLimpiar.addActionListener(e -> {
             limpiarFormulario();
             actualizarResumen();
         });
-        botones.add(btnGuardar);
-        botones.add(btnImportar);
+
+        JPanel botones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        botones.setOpaque(false);
         botones.add(btnLimpiar);
-        grid.add(botones, gbc);
-        gbc.gridwidth = 1;
+        botones.add(btnImportar);
+        botones.add(btnGuardar);
 
-        fila++;
-        gbc.gridy = fila;
-        gbc.gridx = 0;
-        gbc.gridwidth = 4;
-        lblMensaje.setFont(UIFactory.FUENTE_TEXTO_NEGRITA);
-        grid.add(lblMensaje, gbc);
-        gbc.gridwidth = 1;
-
-        JScrollPane scrollForm = new JScrollPane(grid);
-        scrollForm.setBorder(null);
-        scrollForm.setBackground(ColoresUI.SUPERFICIE);
-        scrollForm.getViewport().setBackground(ColoresUI.SUPERFICIE);
-        scrollForm.setOpaque(true);
-        scrollForm.setVerticalScrollBarPolicy(
-                javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scrollForm.setHorizontalScrollBarPolicy(
-                javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        estilizarBarraScroll(scrollForm);
+        lblMensaje.setFont(UIFactory.FUENTE_NORMAL);
+        JPanel pie = new JPanel(new BorderLayout(16, 0));
+        pie.setOpaque(false);
+        pie.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, ColoresUI.BORDE),
+                BorderFactory.createEmptyBorder(14, 24, 14, 20)));
+        pie.add(lblMensaje, BorderLayout.CENTER);
+        pie.add(botones, BorderLayout.EAST);
 
         tarjeta.add(scrollForm, BorderLayout.CENTER);
+        tarjeta.add(pie, BorderLayout.SOUTH);
         return tarjeta;
     }
 
-    /** Fila de encabezado de grupo que ocupa las 4 columnas. */
-    private void agregarGrupo(JPanel grid, GridBagConstraints gbc, int fila, String titulo) {
-        JLabel grupo = UIFactory.crearLabel(titulo);
-        grupo.setFont(UIFactory.FUENTE_TEXTO_NEGRITA);
-        grupo.setForeground(ColoresUI.TEXTO_VINO);
-        gbc.gridx = 0;
-        gbc.gridy = fila;
-        gbc.gridwidth = 4;
-        gbc.insets = new Insets(14, 8, 2, 8);
-        grid.add(grupo, gbc);
-        gbc.gridwidth = 1;
-        gbc.insets = new Insets(6, 8, 6, 8);
+    /** Contenido que se ajusta al ancho visible del scroll (solo desplaza en vertical). */
+    private static final class PanelAnchoVista extends JPanel implements javax.swing.Scrollable {
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(java.awt.Rectangle r, int orientacion, int direccion) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(java.awt.Rectangle r, int orientacion, int direccion) {
+            return r.height - 32;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
     }
 
-    /** Fila etiqueta + campo a la izquierda del formulario. */
-    private void agregarCampo(JPanel grid, GridBagConstraints gbc, int fila,
-                              String etiqueta, JTextField campo) {
-        gbc.gridx = 0;
-        gbc.gridy = fila;
-        grid.add(UIFactory.crearLabel(etiqueta), gbc);
-        gbc.gridx = 1;
-        gbc.gridwidth = 3;
-        grid.add(campo, gbc);
-        gbc.gridwidth = 1;
+    /** Sección del formulario: etiqueta de grupo y su contenido debajo. */
+    private static void agregarSeccion(JPanel grid, String titulo, JComponent contenido) {
+        JLabel lbl = UIFactory.crearEtiquetaGrupo(titulo);
+        lbl.setBorder(BorderFactory.createEmptyBorder(grid.getComponentCount() == 0 ? 0 : 24, 0, 10, 0));
+        lbl.setAlignmentX(Component.LEFT_ALIGNMENT);
+        contenido.setAlignmentX(Component.LEFT_ALIGNMENT);
+        // Alto fijo: si el formulario es más bajo que la tarjeta, BoxLayout no estira las secciones
+        lbl.setMaximumSize(new Dimension(Integer.MAX_VALUE, lbl.getPreferredSize().height));
+        contenido.setMaximumSize(new Dimension(Integer.MAX_VALUE, contenido.getPreferredSize().height));
+        grid.add(lbl);
+        grid.add(contenido);
     }
 
-    private void estilizarBarraScroll(JScrollPane scroll) {
-        scroll.setBackground(ColoresUI.SUPERFICIE);
-        scroll.getViewport().setBackground(ColoresUI.SUPERFICIE);
-        scroll.getViewport().setOpaque(true);
-        JScrollBar barra = scroll.getVerticalScrollBar();
-        barra.setUI(new javax.swing.plaf.basic.BasicScrollBarUI() {
-            @Override
-            protected void configureScrollBarColors() {
-                this.thumbColor = ColoresUI.VINO_OSCURO;
-                this.trackColor = ColoresUI.SUPERFICIE;
-            }
+    /** Pares etiqueta/campo repartidos en dos columnas. */
+    private static JPanel columnas(Object... pares) {
+        JPanel p = new JPanel(new GridLayout(0, 2, 16, 12));
+        p.setOpaque(false);
+        for (int i = 0; i < pares.length; i += 2) {
+            p.add(campo((String) pares[i], (JComponent) pares[i + 1]));
+        }
+        return p;
+    }
 
-            @Override
-            protected JButton createDecreaseButton(int orientation) {
-                return crearBotonVacio();
-            }
-
-            @Override
-            protected JButton createIncreaseButton(int orientation) {
-                return crearBotonVacio();
-            }
-
-            private JButton crearBotonVacio() {
-                JButton b = new JButton();
-                b.setPreferredSize(new Dimension(0, 0));
-                b.setMinimumSize(new Dimension(0, 0));
-                b.setMaximumSize(new Dimension(0, 0));
-                return b;
-            }
-        });
-        barra.setBackground(ColoresUI.SUPERFICIE);
-        barra.setUnitIncrement(16);
+    /** Etiqueta sobre el campo. */
+    private static JPanel campo(String etiqueta, JComponent control) {
+        JLabel lbl = new JLabel(etiqueta);
+        lbl.setFont(UIFactory.FUENTE_NORMAL);
+        lbl.setForeground(ColoresUI.TEXTO_SECUNDARIO);
+        JPanel p = new JPanel(new BorderLayout(0, 6));
+        p.setOpaque(false);
+        p.add(lbl, BorderLayout.NORTH);
+        p.add(control, BorderLayout.CENTER);
+        return p;
     }
 
     private void estilizarCamposNuevos() {
@@ -467,59 +397,57 @@ public class IngresoManualPanel extends JPanel {
     }
 
     private JPanel construirPanelLateral() {
-        JPanel lateral = new JPanel(new GridLayout(2, 1, 0, 16));
+        JPanel lateral = new JPanel(new GridBagLayout());
         lateral.setOpaque(false);
-        lateral.add(construirTarjetaResumen());
-        lateral.add(construirTarjetaRecientes());
+        GridBagConstraints c = new GridBagConstraints();
+        c.gridx = 0;
+        c.weightx = 1;
+        c.fill = GridBagConstraints.BOTH;
+        c.gridy = 0;
+        c.weighty = 0;
+        lateral.add(construirTarjetaResumen(), c);
+        c.gridy = 1;
+        c.weighty = 1;
+        c.insets = new Insets(16, 0, 0, 0);
+        lateral.add(construirTarjetaRecientes(), c);
         return lateral;
     }
 
+    /** Vista previa en vivo de lo que se va a guardar y su nivel de alerta. */
     private JPanel construirTarjetaResumen() {
         JPanel tarjeta = EstiloUI.crearPanelTarjeta();
-        tarjeta.setBorder(BorderFactory.createEmptyBorder(18, 20, 18, 20));
-
-        JLabel lblTitulo = UIFactory.crearLabelTitulo("Resumen del Registro");
-        lblTitulo.setFont(UIFactory.FUENTE_TITULO_SLIDE);
-
-        resumenFecha.setFont(UIFactory.FUENTE_TEXTO);
-        resumenFecha.setForeground(ColoresUI.TEXTO_PRIMARIO);
-        resumenFecha.setHorizontalAlignment(JLabel.CENTER);
+        tarjeta.setBorder(BorderFactory.createEmptyBorder(20, 22, 20, 22));
 
         configurarValorResumen(resumenHumedad);
         configurarValorResumen(resumenViento);
         configurarValorResumen(resumenLluvia);
+        configurarValorResumen(resumenFecha);
 
-        alertaHumedad.setFont(UIFactory.FUENTE_TEXTO_NEGRITA);
+        alertaHumedad.setFont(UIFactory.FUENTE_NORMAL);
         alertaHumedad.setForeground(ColoresUI.ALERTA_NORMAL_OSC);
-        alertaHumedad.setHorizontalAlignment(JLabel.CENTER);
-        alertaViento.setFont(UIFactory.FUENTE_TEXTO_NEGRITA);
+        alertaViento.setFont(UIFactory.FUENTE_NORMAL);
         alertaViento.setForeground(ColoresUI.ALERTA_NORMAL_OSC);
-        alertaViento.setHorizontalAlignment(JLabel.CENTER);
 
-        resumenObservaciones.setFont(UIFactory.FUENTE_TEXTO);
+        resumenObservaciones.setFont(UIFactory.FUENTE_NORMAL);
         resumenObservaciones.setForeground(ColoresUI.TEXTO_SECUNDARIO);
-        resumenObservaciones.setHorizontalAlignment(JLabel.CENTER);
 
         JPanel cuerpo = new JPanel();
         cuerpo.setOpaque(false);
         cuerpo.setLayout(new BoxLayout(cuerpo, BoxLayout.Y_AXIS));
-        cuerpo.add(Box.createVerticalGlue());
-        cuerpo.add(crearLineaIcono("Humedad_Relativa.png", resumenHumedad));
-        cuerpo.add(Box.createVerticalStrut(10));
-        cuerpo.add(crearLineaIcono("Velocidad_del_Viento.png", resumenViento));
-        cuerpo.add(Box.createVerticalStrut(10));
-        cuerpo.add(crearLineaIcono("Precipitacion.png", resumenLluvia));
-        cuerpo.add(Box.createVerticalStrut(14));
-        cuerpo.add(crearLineaTexto("Fecha y hora:", resumenFecha));
-        cuerpo.add(Box.createVerticalStrut(10));
-        cuerpo.add(crearLineaTexto("Observaciones:", resumenObservaciones));
+        cuerpo.add(filaResumen("Humedad", resumenHumedad));
+        cuerpo.add(filaResumen("Viento", resumenViento));
+        cuerpo.add(filaResumen("Lluvia", resumenLluvia));
+        cuerpo.add(filaResumen("Fecha y hora", resumenFecha));
         cuerpo.add(Box.createVerticalStrut(12));
-        cuerpo.add(crearLineaTexto("", alertaHumedad));
-        cuerpo.add(Box.createVerticalStrut(8));
-        cuerpo.add(crearLineaTexto("", alertaViento));
-        cuerpo.add(Box.createVerticalGlue());
+        cuerpo.add(bloqueTexto("Observaciones", resumenObservaciones));
+        cuerpo.add(Box.createVerticalStrut(12));
+        cuerpo.add(alinear(alertaHumedad));
+        cuerpo.add(Box.createVerticalStrut(4));
+        cuerpo.add(alinear(alertaViento));
 
-        tarjeta.add(construirEncabezadoTarjeta(lblTitulo), BorderLayout.NORTH);
+        JLabel lblTitulo = UIFactory.crearLabelTitulo("Resumen del registro");
+        lblTitulo.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        tarjeta.add(lblTitulo, BorderLayout.NORTH);
         tarjeta.add(cuerpo, BorderLayout.CENTER);
         return tarjeta;
     }
@@ -527,97 +455,126 @@ public class IngresoManualPanel extends JPanel {
     private void configurarValorResumen(JLabel valor) {
         valor.setFont(UIFactory.FUENTE_TEXTO_NEGRITA);
         valor.setForeground(ColoresUI.TEXTO_PRIMARIO);
-        valor.setHorizontalAlignment(JLabel.CENTER);
+        valor.setHorizontalAlignment(JLabel.RIGHT);
     }
 
-    private JPanel crearLineaIcono(String icono, JLabel valor) {
-        JPanel linea = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        linea.setOpaque(false);
-        linea.setAlignmentX(Component.CENTER_ALIGNMENT);
-        JLabel lblIcono = new JLabel();
-        ImageIcon img = UIFactory.cargarIconoProporcional(icono, 32, 48);
-        if (img != null) {
-            lblIcono.setIcon(img);
-        }
-        linea.add(lblIcono);
-        linea.add(valor);
-        return linea;
+    /**
+     * Fila etiqueta a la izquierda y valor a la derecha. Sin iconos: el de
+     * lluvia era un triángulo rojo y se leía como alerta.
+     */
+    private JPanel filaResumen(String etiqueta, JLabel valor) {
+        JLabel lbl = new JLabel(etiqueta);
+        lbl.setFont(UIFactory.FUENTE_NORMAL.deriveFont(14f));
+        lbl.setForeground(ColoresUI.TEXTO_SECUNDARIO);
+        JPanel fila = new JPanel(new BorderLayout(12, 0));
+        fila.setOpaque(false);
+        fila.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, ColoresUI.LINEA_TABLA),
+                BorderFactory.createEmptyBorder(9, 0, 9, 0)));
+        fila.add(lbl, BorderLayout.WEST);
+        fila.add(valor, BorderLayout.EAST);
+        return alinear(fila);
     }
 
-    private JPanel crearLineaTexto(String etiqueta, JLabel valor) {
-        JPanel linea = new JPanel();
-        linea.setOpaque(false);
-        linea.setLayout(new BoxLayout(linea, BoxLayout.Y_AXIS));
-        linea.setAlignmentX(Component.CENTER_ALIGNMENT);
-        if (!etiqueta.isEmpty()) {
-            JLabel lblEtiqueta = UIFactory.crearLabel(etiqueta);
-            lblEtiqueta.setFont(UIFactory.FUENTE_TEXTO_NEGRITA);
-            lblEtiqueta.setForeground(ColoresUI.TEXTO_SECUNDARIO);
-            lblEtiqueta.setAlignmentX(Component.CENTER_ALIGNMENT);
-            linea.add(lblEtiqueta);
-        }
-        valor.setAlignmentX(Component.CENTER_ALIGNMENT);
-        linea.add(valor);
-        return linea;
+    private JPanel bloqueTexto(String etiqueta, JLabel valor) {
+        JPanel bloque = new JPanel(new BorderLayout(0, 4));
+        bloque.setOpaque(false);
+        bloque.add(UIFactory.crearEtiquetaGrupo(etiqueta), BorderLayout.NORTH);
+        bloque.add(valor, BorderLayout.CENTER);
+        return alinear(bloque);
     }
 
-    private JPanel construirEncabezadoTarjeta(JLabel lblTitulo) {
-        lblTitulo.setHorizontalAlignment(JLabel.CENTER);
-        JPanel superior = new JPanel(new BorderLayout());
-        superior.setOpaque(false);
-        JLabel espacio = new JLabel(" ");
-        espacio.setPreferredSize(new Dimension(1, 8));
-        superior.add(espacio, BorderLayout.NORTH);
-        superior.add(lblTitulo, BorderLayout.CENTER);
-        return superior;
+    private static <T extends JComponent> T alinear(T c) {
+        c.setAlignmentX(Component.LEFT_ALIGNMENT);
+        c.setMaximumSize(new Dimension(Integer.MAX_VALUE, c.getPreferredSize().height));
+        return c;
     }
 
     private JPanel construirTarjetaRecientes() {
         JPanel tarjeta = EstiloUI.crearPanelTarjeta();
-        tarjeta.setBorder(BorderFactory.createEmptyBorder(18, 20, 18, 20));
+        tarjeta.setBorder(BorderFactory.createEmptyBorder(20, 22, 16, 22));
 
-        JLabel lblTitulo = UIFactory.crearLabelTitulo("Últimos Registros");
-        lblTitulo.setFont(UIFactory.FUENTE_TITULO_SLIDE);
+        JLabel lblTitulo = UIFactory.crearLabelTitulo("Últimos registros");
+        JButton btnVerTodo = UIFactory.crearBotonTexto("Ver histórico");
+        btnVerTodo.addActionListener(e -> navegador.accept(HistoricoPanel.KEY));
+        JPanel cabecera = new JPanel(new BorderLayout());
+        cabecera.setOpaque(false);
+        cabecera.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+        cabecera.add(lblTitulo, BorderLayout.WEST);
+        cabecera.add(btnVerTodo, BorderLayout.EAST);
 
-        listaRecientes = new JPanel(new GridLayout(6, 1, 0, 4));
+        listaRecientes = new JPanel();
         listaRecientes.setOpaque(false);
+        listaRecientes.setLayout(new BoxLayout(listaRecientes, BoxLayout.Y_AXIS));
 
-        tarjeta.add(construirEncabezadoTarjeta(lblTitulo), BorderLayout.NORTH);
+        tarjeta.add(cabecera, BorderLayout.NORTH);
         tarjeta.add(listaRecientes, BorderLayout.CENTER);
         return tarjeta;
     }
 
+    /** Lista compacta: fecha y hora a la izquierda, humedad y viento alineados a la derecha. */
     public void recargarRecientes() {
-        List<RegistroMeteorologico> recientes = RegistroDAO.obtenerTodos();
+        List<RegistroMeteorologico> recientes;
+        String problema = null;
+        try {
+            recientes = RegistroDAO.obtenerTodos();
+        } catch (SQLException e) {
+            Bitacora.error("IngresoManualPanel.recargarRecientes", e);
+            recientes = List.of();
+            problema = "No se pudo leer la base de datos.";
+        }
         listaRecientes.removeAll();
         int max = Math.min(6, recientes.size());
-        for (int i = 0; i < 6; i++) {
-            final int indice = i;
-            JLabel fila = new JLabel();
-            fila.setFont(UIFactory.FUENTE_TEXTO.deriveFont(15f));
-            fila.setHorizontalAlignment(JLabel.CENTER);
+        if (problema != null) {
+            JLabel aviso = new JLabel(problema);
+            aviso.setFont(UIFactory.FUENTE_NORMAL);
+            aviso.setForeground(ColoresUI.ALERTA_ATENCION_OSC);
+            listaRecientes.add(alinear(aviso));
+        } else if (max == 0) {
+            JLabel vacio = new JLabel("Aún no hay registros guardados.");
+            vacio.setFont(UIFactory.FUENTE_NORMAL);
+            vacio.setForeground(ColoresUI.TEXTO_SUAVE);
+            listaRecientes.add(alinear(vacio));
+        }
+        for (int i = 0; i < max; i++) {
+            RegistroMeteorologico r = recientes.get(i);
+            JLabel lblFecha = new JLabel(DateUtil.formatoFechaSeguro(r.getFecha())
+                    + "  " + DateUtil.formatoHoraSeguro(r.getHora()));
+            lblFecha.setFont(UIFactory.FUENTE_NORMAL.deriveFont(14f));
+            lblFecha.setForeground(ColoresUI.TEXTO_SECUNDARIO);
+
+            JPanel cifras = new JPanel(new GridLayout(1, 2, 12, 0));
+            cifras.setOpaque(false);
+            cifras.add(cifra(Estadistica.fmt("%.1f %%", r.getHumedad())));
+            cifras.add(cifra(Estadistica.fmt("%.1f km/h", r.getVelocidadViento())));
+
+            JPanel fila = new JPanel(new BorderLayout(12, 0));
+            fila.setOpaque(false);
+            fila.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createMatteBorder(0, 0, i < max - 1 ? 1 : 0, 0, ColoresUI.LINEA_TABLA),
+                    BorderFactory.createEmptyBorder(9, 0, 9, 0)));
+            fila.add(lblFecha, BorderLayout.WEST);
+            fila.add(cifras, BorderLayout.EAST);
             fila.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            fila.setToolTipText("Ver en Histórico");
             fila.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
                     navegador.accept(HistoricoPanel.KEY);
                 }
             });
-            if (indice < max) {
-                RegistroMeteorologico r = recientes.get(indice);
-                fila.setText("• " + DateUtil.formatoFechaSeguro(r.getFecha())
-                        + " " + DateUtil.formatoHoraSeguro(r.getHora())
-                        + "  |  " + Estadistica.fmt("%.1f %%", r.getHumedad())
-                        + "  |  " + Estadistica.fmt("%.1f km/h", r.getVelocidadViento()));
-                fila.setForeground(ColoresUI.TEXTO_PRIMARIO);
-            } else {
-                fila.setText("• Sin datos");
-                fila.setForeground(ColoresUI.TEXTO_SUAVE);
-            }
-            listaRecientes.add(fila);
+            listaRecientes.add(alinear(fila));
         }
         listaRecientes.revalidate();
         listaRecientes.repaint();
+    }
+
+    private static JLabel cifra(String texto) {
+        JLabel lbl = new JLabel(texto, JLabel.RIGHT);
+        lbl.setFont(UIFactory.FUENTE_NORMAL.deriveFont(14f));
+        lbl.setForeground(ColoresUI.TEXTO_PRIMARIO);
+        lbl.setPreferredSize(new Dimension(78, lbl.getPreferredSize().height));
+        return lbl;
     }
 
     private void escucharCambios() {
@@ -683,11 +640,13 @@ public class IngresoManualPanel extends JPanel {
         resumenLluvia.setText(lluvia == null ? "--" : String.format("%.1f mm/h", lluvia));
 
         String obs = getObservaciones().trim();
-        resumenObservaciones.setText(obs.isEmpty() ? "--" : obs);
+        resumenObservaciones.setText(obs.isEmpty() ? "--" : envolverHtml(obs));
     }
 
     private String envolverHtml(String texto) {
-        return "<html><div style='text-align:center;'>" + texto + "</div></html>";
+        // Ancho fijo para que el texto largo se parta en líneas dentro de la tarjeta
+        String seguro = texto.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        return "<html><body style='width:260px'>" + seguro + "</body></html>";
     }
 
     public LocalDate getFecha() {

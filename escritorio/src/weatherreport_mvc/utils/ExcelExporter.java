@@ -5,9 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
-import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
@@ -17,6 +15,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import weatherreport_mvc.models.ConfiguracionSistema;
 import weatherreport_mvc.models.RegistroMeteorologico;
 
 /**
@@ -119,19 +118,9 @@ public final class ExcelExporter {
     }
 
     public static File elegirDestino(Component padre) {
-        JFileChooser selector = new JFileChooser();
-        selector.setDialogTitle("Exportar Histórico a Excel");
-        selector.setFileFilter(new FileNameExtensionFilter("Archivos Excel (*.xlsx)", "xlsx"));
-        selector.setSelectedFile(new File("historico.xlsx"));
-        if (selector.showSaveDialog(padre) != JFileChooser.APPROVE_OPTION) {
-            return null;
-        }
-        File archivo = selector.getSelectedFile();
-        String nombre = archivo.getName();
-        if (!nombre.toLowerCase().endsWith(".xlsx")) {
-            archivo = new File(archivo.getParentFile(), nombre + ".xlsx");
-        }
-        return archivo;
+        return SelectorArchivos.elegirDestino(padre, "Exportar Histórico a Excel",
+                ConfiguracionSistema.cargar().getRutaReportes(),
+                "historico_" + DateUtil.selloArchivo() + ".xlsx", "Archivos Excel (*.xlsx)", "xlsx");
     }
 
     public static void mostrarError(Component padre, String mensaje) {

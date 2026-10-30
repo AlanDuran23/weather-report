@@ -188,6 +188,7 @@ public final class EstiloUI {
 
         private Color relleno;
         private Color rellenoHover;
+        private Color rellenoPresionado;
         private Color borde;
         private Color glow;
         private final int radio;
@@ -212,8 +213,19 @@ public final class EstiloUI {
             setContentAreaFilled(false);
             setFocusPainted(false);
             setOpaque(false);
-            setBorder(BorderFactory.createEmptyBorder(10, 22, 10, 22));
+            setBorder(BorderFactory.createEmptyBorder(9, 18, 9, 18));
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            addFocusListener(new java.awt.event.FocusAdapter() {
+                @Override
+                public void focusGained(java.awt.event.FocusEvent e) {
+                    repaint();
+                }
+
+                @Override
+                public void focusLost(java.awt.event.FocusEvent e) {
+                    repaint();
+                }
+            });
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseEntered(MouseEvent e) {
@@ -265,26 +277,35 @@ public final class EstiloUI {
             }
         }
 
+        public void setRellenoPresionado(Color rellenoPresionado) {
+            this.rellenoPresionado = rellenoPresionado;
+        }
+
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                     RenderingHints.VALUE_ANTIALIAS_ON);
             int w = getWidth(), h = getHeight();
-            if (coloresGrad != null) {
-                Point2D p1 = new Point2D.Float(0, 0);
-                Point2D p2 = new Point2D.Float(w, h);
-                g2.setPaint(new LinearGradientPaint(p1, p2, fracGrad, coloresGrad));
-            } else {
-                Color c = hover && rellenoHover != null ? rellenoHover : relleno;
-                if (c != null) {
-                    g2.setColor(c);
-                }
-            }
-            if (radio > 0) {
+            boolean presionado = getModel().isArmed() && getModel().isPressed();
+            Color c;
+            if (!isEnabled()) {
+                c = relleno == null ? null : ColoresUI.SUPERFICIE;
+            } else if (coloresGrad != null) {
+                c = null;
+                g2.setPaint(new LinearGradientPaint(new Point2D.Float(0, 0),
+                        new Point2D.Float(w, h), fracGrad, coloresGrad));
                 g2.fillRoundRect(0, 0, w, h, radio, radio);
+            } else if (presionado && rellenoPresionado != null) {
+                c = rellenoPresionado;
+            } else if ((hover || presionado) && rellenoHover != null) {
+                c = rellenoHover;
             } else {
-                g2.fillRect(0, 0, w, h);
+                c = relleno;
+            }
+            if (c != null) {
+                g2.setColor(c);
+                g2.fillRoundRect(0, 0, w, h, radio, radio);
             }
             g2.dispose();
             super.paintComponent(g);
@@ -299,62 +320,185 @@ public final class EstiloUI {
 
             if (lineaInferior && lineaColor != null) {
                 g2.setColor(lineaColor);
-                g2.setStroke(new BasicStroke(1f));
                 g2.drawLine(0, h, w, h);
             }
-
-            if (glow != null) {
-                int base = hover ? 120 : 80;
-                g2.setColor(new Color(glow.getRed(), glow.getGreen(),
-                        glow.getBlue(), base));
-                g2.setStroke(new BasicStroke(2f));
-                if (radio > 0) {
-                    g2.drawRoundRect(1, 1, w - 2, h - 2, radio, radio);
-                } else {
-                    g2.drawRect(1, 1, w - 2, h - 2);
-                }
-                g2.setColor(new Color(glow.getRed(), glow.getGreen(),
-                        glow.getBlue(), hover ? 60 : 40));
-                g2.setStroke(new BasicStroke(4f));
-                if (radio > 0) {
-                    g2.drawRoundRect(3, 3, w - 6, h - 6, Math.max(0, radio - 2),
-                            Math.max(0, radio - 2));
-                } else {
-                    g2.drawRect(3, 3, w - 6, h - 6);
-                }
+            // El "glow" ahora es solo un trazo de 1 px: el halo competía con las alertas
+            Color trazo = glow != null ? glow : borde;
+            if (trazo != null && isEnabled()) {
+                g2.setColor(trazo);
+                g2.drawRoundRect(0, 0, w, h, radio, radio);
             }
-
-            if (borde != null && glow == null) {
-                g2.setColor(borde);
-                g2.setStroke(new BasicStroke(1f));
-                if (radio > 0) {
-                    g2.drawRoundRect(0, 0, w, h, radio, radio);
-                } else {
-                    g2.drawRect(0, 0, w, h);
-                }
+            if (isFocusOwner() && isEnabled()) {
+                g2.setColor(ColoresUI.ENFOQUE);
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawRoundRect(1, 1, w - 2, h - 2, radio, radio);
             }
             g2.dispose();
         }
     }
 
-    /** Cabecera de módulo con degradado vino intenso -> rubí y línea inferior. */
-    public static PanelRedondeado crearPanelDegradadoVino() {
-        PanelRedondeado p = new PanelRedondeado(0, null, ColoresUI.DESTELLO);
-        p.configurarDegradado(new Color[]{
-            ColoresUI.VINO_OSCURO, ColoresUI.VINO, ColoresUI.RUBI_OSCURO
-        }, new float[]{0f, 0.55f, 1f});
-        p.setSoloBordeInferior(true);
+    /**
+     * Cabecera plana de módulo: título, descripción opcional y una línea fina
+     * abajo. El lado derecho queda libre para acciones (BorderLayout.EAST).
+     */
+    public static JPanel crearEncabezadoModulo(String titulo, String descripcion) {
+        JPanel p = new JPanel(new BorderLayout(16, 0));
+        p.setBackground(ColoresUI.FONDO_RAIZ);
+        p.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, ColoresUI.BORDE),
+                BorderFactory.createEmptyBorder(18, 20, 16, 20)));
+
+        JLabel lblTitulo = new JLabel(titulo);
+        lblTitulo.setFont(UIFactory.FUENTE_ENCABEZADO);
+        lblTitulo.setForeground(ColoresUI.TEXTO_PRIMARIO);
+
+        JPanel textos = new JPanel(new BorderLayout(0, 2));
+        textos.setOpaque(false);
+        textos.add(lblTitulo, BorderLayout.NORTH);
+        if (descripcion != null) {
+            JLabel lblDesc = new JLabel(descripcion);
+            lblDesc.setFont(UIFactory.FUENTE_NORMAL);
+            lblDesc.setForeground(ColoresUI.TEXTO_SUAVE);
+            textos.add(lblDesc, BorderLayout.SOUTH);
+        }
+        p.add(textos, BorderLayout.CENTER);
+        return p;
+    }
+
+    /** Tarjeta oscura redondeada: borde fino, sin sombra (en oscuro no se lee). */
+    public static PanelRedondeado crearPanelTarjeta() {
+        PanelRedondeado p = new PanelRedondeado(12, ColoresUI.SUPERFICIE_ELEVADA,
+                ColoresUI.BORDE);
         p.setLayout(new BorderLayout());
         return p;
     }
 
-    /** Tarjeta oscura redondeada con sombra exterior sutil y listo para contenido. */
-    public static PanelRedondeado crearPanelTarjeta() {
-        PanelRedondeado p = new PanelRedondeado(14, ColoresUI.SUPERFICIE_ELEVADA,
-                ColoresUI.BORDE);
-        p.configurarSombra(6);
-        p.setLayout(new BorderLayout());
-        return p;
+    /**
+     * Borde redondeado de campo de entrada: gris en reposo y vino al tener el
+     * foco. El fondo hundido lo pinta {@link #pintarFondoCampo}.
+     */
+    public static class BordeCampo extends javax.swing.border.AbstractBorder {
+
+        static final int RADIO = 8;
+        private final Insets margen;
+
+        public BordeCampo(int vertical, int horizontal) {
+            this.margen = new Insets(vertical, horizontal, vertical, horizontal);
+        }
+
+        @Override
+        public void paintBorder(java.awt.Component c, Graphics g, int x, int y,
+                int w, int h) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
+                    RenderingHints.VALUE_STROKE_PURE);
+            boolean foco = c.isFocusOwner() && c.isEnabled();
+            g2.setColor(foco ? ColoresUI.ENFOQUE : ColoresUI.BORDE_CAMPO);
+            // Medio píxel hacia dentro: con escalado de Windows (125 %) el trazo en y=0 se recortaba
+            g2.draw(new java.awt.geom.RoundRectangle2D.Float(x + 0.5f, y + 0.5f,
+                    w - 1.5f, h - 1.5f, RADIO, RADIO));
+            g2.dispose();
+        }
+
+        @Override
+        public Insets getBorderInsets(java.awt.Component c) {
+            return new Insets(margen.top, margen.left, margen.bottom, margen.right);
+        }
+
+        @Override
+        public Insets getBorderInsets(java.awt.Component c, Insets insets) {
+            insets.set(margen.top, margen.left, margen.bottom, margen.right);
+            return insets;
+        }
+    }
+
+    /** Relleno redondeado del campo, pintado antes del texto. */
+    public static void pintarFondoCampo(Graphics g, JComponent c) {
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(c.isEnabled() ? c.getBackground() : ColoresUI.SUPERFICIE);
+        g2.fillRoundRect(0, 0, c.getWidth(), c.getHeight(),
+                BordeCampo.RADIO, BordeCampo.RADIO);
+        g2.dispose();
+    }
+
+    /**
+     * Fila del menú lateral. Activa: fondo elevado y riel vino a la izquierda.
+     * Puede mostrar un punto de estado (nivel de alerta) a la derecha.
+     */
+    public static class BotonNavegacion extends JButton {
+
+        private boolean activo;
+        private boolean hover;
+        private Color indicador;
+
+        public BotonNavegacion(String texto) {
+            super(texto);
+            setContentAreaFilled(false);
+            setFocusPainted(false);
+            setBorderPainted(false);
+            setOpaque(false);
+            setHorizontalAlignment(LEFT);
+            setIconTextGap(12);
+            setFont(UIFactory.FUENTE_MENU);
+            setForeground(ColoresUI.TEXTO_SECUNDARIO);
+            setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 14));
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hover = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hover = false;
+                    repaint();
+                }
+            });
+        }
+
+        public void setActivo(boolean activo) {
+            this.activo = activo;
+            setForeground(activo ? ColoresUI.TEXTO_PRIMARIO : ColoresUI.TEXTO_SECUNDARIO);
+            repaint();
+        }
+
+        /** Color del punto de estado; null lo oculta. */
+        public void setIndicador(Color indicador, String descripcion) {
+            this.indicador = indicador;
+            setToolTipText(descripcion);
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            int w = getWidth(), h = getHeight();
+            if (activo || hover) {
+                g2.setColor(activo ? ColoresUI.SUPERFICIE_ELEVADA : ColoresUI.SUPERFICIE);
+                g2.fillRoundRect(0, 0, w, h, 8, 8);
+            }
+            if (activo) {
+                g2.setColor(ColoresUI.ENFOQUE);
+                g2.fillRoundRect(0, 9, 3, h - 18, 3, 3);
+            }
+            if (indicador != null) {
+                g2.setColor(new Color(indicador.getRed(), indicador.getGreen(),
+                        indicador.getBlue(), 50));
+                g2.fillOval(w - 25, h / 2 - 7, 14, 14);
+                g2.setColor(indicador);
+                g2.fillOval(w - 21, h / 2 - 3, 6, 6);
+            }
+            g2.dispose();
+            super.paintComponent(g);
+        }
     }
 
     /** Tarjeta oscura que envuelve un contenido, con padding interior. */

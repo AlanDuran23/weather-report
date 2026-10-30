@@ -1,7 +1,6 @@
 package weatherreport_mvc.views;
 
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -28,7 +27,7 @@ import weatherreport_mvc.utils.UIFactory;
 public class NuevoUsuarioDialog extends JDialog {
 
     private static final String[] ROLES = {
-        Usuario.ROL_INGENIERO, Usuario.ROL_CONSULTA
+        Usuario.ROL_INGENIERO, Usuario.ROL_CONSULTA, Usuario.ROL_BASICO
     };
 
     private final UsuarioController controller;
@@ -56,6 +55,7 @@ public class NuevoUsuarioDialog extends JDialog {
         txtContrasena = new JPasswordField(20);
         UIFactory.estilizarCampo(txtContrasena);
         cmbRol = new JComboBox<>(ROLES);
+        cmbRol.setSelectedItem(Usuario.ROL_BASICO); // cuenta nueva: el rol con menos acceso
         UIFactory.estilizarCombo(cmbRol);
         lblMensaje = new JLabel(" ");
 
@@ -64,8 +64,8 @@ public class NuevoUsuarioDialog extends JDialog {
             precargar(editando);
         }
         pack();
-        setMinimumSize(new Dimension(430, 320));
-        setSize(430, 330);
+        // Alto según el contenido (los campos cambian de tamaño con el tema); ancho mínimo fijo
+        setSize(Math.max(getWidth(), 430), getHeight());
     }
 
     private void construirInterfaz() {

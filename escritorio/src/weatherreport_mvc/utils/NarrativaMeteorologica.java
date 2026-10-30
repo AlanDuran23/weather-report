@@ -98,8 +98,11 @@ public final class NarrativaMeteorologica {
 
         String f = "%.1f";
         StringBuilder sb = new StringBuilder();
-        sb.append("A continuación, el resumen meteorológico correspondiente a ")
-                .append(apertura(periodo, desde, hasta)).append(".\n\n");
+        // "a el" se contrae a "al" (al día, al mes); "a la semana" queda igual
+        String apertura = apertura(periodo, desde, hasta);
+        sb.append("A continuación, el resumen meteorológico correspondiente ")
+                .append(apertura.startsWith("el ") ? "al " + apertura.substring(3) : "a " + apertura)
+                .append(".\n\n");
 
         sb.append(periodo.durante)
                 .append(", las temperaturas registradas oscilaron entre máximas absolutas de ")

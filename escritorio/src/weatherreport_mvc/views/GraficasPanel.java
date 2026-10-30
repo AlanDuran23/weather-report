@@ -1,8 +1,6 @@
 package weatherreport_mvc.views;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -23,7 +21,6 @@ import weatherreport_mvc.controllers.GraficasController;
 import weatherreport_mvc.utils.ColoresUI;
 import weatherreport_mvc.utils.DateUtil;
 import weatherreport_mvc.utils.EstiloUI;
-import weatherreport_mvc.utils.EstiloUI.PanelRedondeado;
 import weatherreport_mvc.utils.GraficaUtil.PeriodoGrafica;
 import weatherreport_mvc.utils.GraficaUtil.VariableMeteorologica;
 import weatherreport_mvc.utils.UIFactory;
@@ -66,24 +63,16 @@ public class GraficasPanel extends JPanel {
     }
 
     private void construirInterfaz() {
-        PanelRedondeado encabezado = EstiloUI.crearPanelDegradadoVino();
-        encabezado.setBorder(BorderFactory.createEmptyBorder(14, 20, 6, 20));
+        JPanel encabezado = EstiloUI.crearEncabezadoModulo("Gráficas Meteorológicas",
+                "Comportamiento de una variable por semana, mes o año");
 
-        JLabel lblTitulo = new JLabel("Gráficas Meteorológicas");
-        lblTitulo.setFont(UIFactory.FUENTE_TITULO_SLIDE);
-        lblTitulo.setForeground(ColoresUI.BLANCO);
-
-        JPanel botonera = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        // Recargar no es la acción principal de la vista: va como secundario
+        JPanel botonera = new JPanel(new java.awt.GridBagLayout());
         botonera.setOpaque(false);
-        JButton btnRefrescar = UIFactory.crearBotonPrimario("Actualizar gráficas");
+        JButton btnRefrescar = UIFactory.crearBotonSecundario("Actualizar gráficas");
         btnRefrescar.addActionListener(e -> controller.cargar());
         botonera.add(btnRefrescar);
-
-        JPanel filaEncabezado = new JPanel(new BorderLayout(10, 0));
-        filaEncabezado.setOpaque(false);
-        filaEncabezado.add(lblTitulo, BorderLayout.WEST);
-        filaEncabezado.add(botonera, BorderLayout.EAST);
-        encabezado.add(filaEncabezado, BorderLayout.NORTH);
+        encabezado.add(botonera, BorderLayout.EAST);
 
         zonaGrafica.setBackground(ColoresUI.SUPERFICIE);
         zonaGrafica.add(placeholder("Cargando gráfica..."), BorderLayout.CENTER);
@@ -131,28 +120,31 @@ public class GraficasPanel extends JPanel {
     /** Barra de pestañas genérica: periodo o variable meteorológica. */
     private JPanel crearBarraPestañas(int seleccionada, Object[] opciones,
             Consumer<Object> alSeleccionar) {
-        JPanel barra = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        barra.setOpaque(false);
+        JPanel grupo = UIFactory.crearGrupoSegmentado();
         JButton[] botones = new JButton[opciones.length];
         for (int i = 0; i < opciones.length; i++) {
             Object opcion = opciones[i];
             String nombre = opcion instanceof VariableMeteorologica v
                     ? v.getNombre()
                     : ((PeriodoGrafica) opcion).getNombre();
-            JButton boton = UIFactory.crearBotonSecundario(nombre);
-            boton.setPreferredSize(new Dimension(110, 34));
+            JButton boton = UIFactory.crearPestania(nombre);
             final Object opcionFinal = opcion;
             boton.addActionListener(e -> {
                 for (JButton b : botones) {
-                    aplicarEstiloPestaña(b, b == boton);
+                    UIFactory.aplicarEstiloPestania(b, b == boton);
                 }
                 alSeleccionar.accept(opcionFinal);
             });
             botones[i] = boton;
-            barra.add(boton);
+            grupo.add(boton);
         }
-        aplicarEstiloPestaña(botones[seleccionada], true);
+        UIFactory.aplicarEstiloPestania(botones[seleccionada], true);
+
+        // El grupo conserva su ancho natural: FlowLayout no lo estira
+        JPanel barra = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        barra.setOpaque(false);
         barra.setBorder(BorderFactory.createEmptyBorder(0, 0, 12, 0));
+        barra.add(grupo);
         return barra;
     }
 
@@ -325,26 +317,6 @@ public class GraficasPanel extends JPanel {
         return Date.from(fecha.atStartOfDay(ZoneId.systemDefault()).toInstant());
     }
 
-    /** Alterna el estilo de una pestaña: activa con degradado vino + glow. */
-    private void aplicarEstiloPestaña(JButton boton, boolean seleccionada) {
-        if (!(boton instanceof EstiloUI.BotonGlow glow)) {
-            return;
-        }
-        if (seleccionada) {
-            glow.configurarGradiente(ColoresUI.VINO_OSCURO, ColoresUI.VINO_NEON);
-            glow.setGlow(ColoresUI.RUBI);
-            glow.setBorde(null);
-            glow.setForeground(ColoresUI.BLANCO);
-        } else {
-            glow.setRelleno(ColoresUI.SUPERFICIE_ELEVADA,
-                    new Color(0x2E, 0x2E, 0x38));
-            glow.setGlow(null);
-            glow.setBorde(ColoresUI.BORDE_CLARO);
-            glow.setForeground(ColoresUI.TEXTO_PRIMARIO);
-        }
-        glow.repaint();
-    }
-
     private JPanel placeholder(String texto) {
         JPanel p = new JPanel(new BorderLayout());
         p.setBackground(ColoresUI.SUPERFICIE);
@@ -353,6 +325,16 @@ public class GraficasPanel extends JPanel {
         lbl.setHorizontalAlignment(JLabel.CENTER);
         p.add(lbl, BorderLayout.CENTER);
         return p;
+    }
+
+    /** Sustituye la gráfica por un aviso en ámbar (p. ej. sin conexión). */
+    public void mostrarError(String mensaje) {
+        zonaGrafica.removeAll();
+        JPanel aviso = placeholder(mensaje);
+        aviso.getComponent(0).setForeground(ColoresUI.ALERTA_ATENCION_OSC);
+        zonaGrafica.add(aviso, BorderLayout.CENTER);
+        zonaGrafica.revalidate();
+        zonaGrafica.repaint();
     }
 
     public void mostrarGrafica(ChartPanel grafica) {

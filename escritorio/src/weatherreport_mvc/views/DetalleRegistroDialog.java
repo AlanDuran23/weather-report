@@ -4,7 +4,6 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Font;
 import java.awt.GridLayout;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -35,13 +34,11 @@ public class DetalleRegistroDialog extends JDialog {
                 "Registro #" + r.getId() + "  ·  "
                 + DateUtil.formatoFechaSeguro(r.getFecha()) + " "
                 + DateUtil.formatoHoraSeguro(r.getHora()));
-        lblEncabezado.setHorizontalAlignment(JLabel.CENTER);
-        lblEncabezado.setFont(UIFactory.FUENTE_TITULO_SLIDE);
-        lblEncabezado.setForeground(ColoresUI.TEXTO_VINO);
+        lblEncabezado.setFont(UIFactory.FUENTE_SECCION.deriveFont(18f));
 
-        JPanel grid = new JPanel(new GridLayout(0, 2, 16, 6));
+        JPanel grid = new JPanel(new GridLayout(0, 2, 24, 8));
         grid.setOpaque(false);
-        grid.setBorder(BorderFactory.createEmptyBorder(8, 4, 8, 4));
+        grid.setBorder(BorderFactory.createEmptyBorder(4, 0, 8, 14));
 
         agregarGrupo(grid, "EXTERIOR");
         agregarFila(grid, "Temperatura exterior", fmt(r.getTempExterior()) + " °C");
@@ -100,17 +97,18 @@ public class DetalleRegistroDialog extends JDialog {
         scroll.setBorder(null);
         scroll.setBackground(ColoresUI.SUPERFICIE);
         scroll.getViewport().setBackground(ColoresUI.SUPERFICIE);
+        UIFactory.estilizarScroll(scroll);
         scroll.setPreferredSize(new Dimension(560, 560));
 
-        JButton btnCerrar = UIFactory.crearBotonPrimario("Cerrar");
+        JButton btnCerrar = UIFactory.crearBotonSecundario("Cerrar");
         btnCerrar.addActionListener(e -> dispose());
-        JPanel botonera = new JPanel(new FlowLayout(FlowLayout.CENTER, 14, 10));
-        botonera.setBackground(ColoresUI.FONDO_RAIZ);
+        JPanel botonera = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        botonera.setOpaque(false);
         botonera.add(btnCerrar);
 
         JPanel contenido = new JPanel(new BorderLayout(0, 12));
         contenido.setBackground(ColoresUI.SUPERFICIE);
-        contenido.setBorder(BorderFactory.createEmptyBorder(20, 22, 14, 22));
+        contenido.setBorder(BorderFactory.createEmptyBorder(20, 24, 18, 24));
         contenido.add(lblEncabezado, BorderLayout.NORTH);
         contenido.add(scroll, BorderLayout.CENTER);
         contenido.add(botonera, BorderLayout.SOUTH);
@@ -122,18 +120,20 @@ public class DetalleRegistroDialog extends JDialog {
 
     private void agregarGrupo(JPanel grid, String titulo) {
         JLabel grupo = new JLabel(titulo);
-        grupo.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        grupo.setForeground(ColoresUI.TEXTO_VINO);
+        grupo.setFont(UIFactory.FUENTE_ETIQUETA);
+        grupo.setForeground(ColoresUI.TEXTO_SUAVE);
+        grupo.setBorder(BorderFactory.createEmptyBorder(12, 0, 0, 0));
         grid.add(grupo);
         grid.add(new JLabel(""));
     }
 
     private void agregarFila(JPanel grid, String etiqueta, String valor) {
         JLabel lbl = UIFactory.crearLabel(etiqueta);
-        lbl.setFont(UIFactory.FUENTE_TEXTO_NEGRITA);
+        lbl.setFont(UIFactory.FUENTE_NORMAL.deriveFont(14f));
         lbl.setForeground(ColoresUI.TEXTO_SECUNDARIO);
         JLabel lblValor = UIFactory.crearLabel(valor);
         lblValor.setFont(UIFactory.FUENTE_TEXTO);
+        lblValor.setHorizontalAlignment(JLabel.RIGHT);
         lblValor.setForeground(ColoresUI.TEXTO_PRIMARIO);
         grid.add(lbl);
         grid.add(lblValor);

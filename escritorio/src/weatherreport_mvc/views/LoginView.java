@@ -1,14 +1,17 @@
 package weatherreport_mvc.views;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.Insets;
 import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -20,9 +23,12 @@ import weatherreport_mvc.utils.UIFactory;
 
 /**
  * Vista de inicio de sesión (JFrame inicial). Solo si el login es exitoso se
- * abre la ventana principal.
+ * abre la ventana principal. A la izquierda, la franja institucional en vino;
+ * a la derecha, el formulario sobre el mismo fondo oscuro de la aplicación.
  */
 public class LoginView extends JFrame {
+
+    private static final java.awt.Color COLOR_ERROR = ColoresUI.ALERTA_CRITICA_OSC;
 
     private final LoginController controller;
     private final JTextField txtUsuario;
@@ -36,19 +42,18 @@ public class LoginView extends JFrame {
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setResizable(false);
-        setSize(920, 560);
+        setSize(920, 580);
         setLocationRelativeTo(null);
 
-        txtUsuario = new JTextField(25);
-        txtUsuario.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        txtUsuario.setPreferredSize(new Dimension(250, 35));
-        
-        txtContrasena = new JPasswordField(25);
-        txtContrasena.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        txtContrasena.setPreferredSize(new Dimension(250, 35));
+        txtUsuario = UIFactory.crearTextField(22);
+        txtContrasena = new JPasswordField(22);
+        UIFactory.estilizarCampo(txtContrasena);
+        txtContrasena.setFont(UIFactory.FUENTE_TEXTO);
+
         lblError = new JLabel(" ");
-        lblError.setForeground(ColoresUI.ALERTA_CRITICA);
-        btnLogin = UIFactory.crearBotonPrimario("Iniciar Sesión");
+        lblError.setFont(UIFactory.FUENTE_NORMAL);
+        lblError.setForeground(COLOR_ERROR);
+        btnLogin = UIFactory.crearBotonPrimario("Iniciar sesión");
         btnLogin.addActionListener(e -> controller.iniciarSesion());
 
         construirInterfaz();
@@ -59,231 +64,154 @@ public class LoginView extends JFrame {
 
     private void construirInterfaz() {
         JPanel raiz = new JPanel(new BorderLayout());
-        raiz.setBackground(ColoresUI.BLANCO);
+        raiz.setBackground(ColoresUI.FONDO_RAIZ);
+        raiz.add(construirFranjaMarca(), BorderLayout.WEST);
+        raiz.add(construirFormulario(), BorderLayout.CENTER);
+        setContentPane(raiz);
+    }
 
-        JPanel lateral = new JPanel(new BorderLayout());
-        lateral.setBackground(ColoresUI.NEGRO);
-        lateral.setPreferredSize(new Dimension(360, 0));
+    /** Franja de marca: vino institucional plano, producto arriba e institución abajo. */
+    private JPanel construirFranjaMarca() {
+        JPanel franja = new JPanel(new BorderLayout());
+        franja.setBackground(ColoresUI.VINO_OSCURO);
+        franja.setPreferredSize(new Dimension(340, 0));
+        franja.setBorder(BorderFactory.createEmptyBorder(40, 36, 36, 36));
 
-        JLabel lblMarca = new JLabel("WEATHER REPORT");
-        lblMarca.setFont(new Font("Segoe UI", Font.BOLD, 30));
+        JLabel lblLogo = new JLabel(cargarImagen("logo_weather_report.png", 72, 72), JLabel.LEFT);
+        JLabel lblMarca = new JLabel("Weather Report");
+        lblMarca.setFont(new Font("Segoe UI Semibold", Font.PLAIN, 26));
         lblMarca.setForeground(ColoresUI.BLANCO);
-        lblMarca.setHorizontalAlignment(JLabel.CENTER);
-        lblMarca.setBorder(BorderFactory.createEmptyBorder(30, 20, 10, 20));
+        JLabel lblLema = new JLabel("<html>Sistema de monitoreo<br>meteorológico</html>");
+        lblLema.setFont(UIFactory.FUENTE_TEXTO);
+        lblLema.setForeground(new java.awt.Color(0xE6, 0xC3, 0xCB));
 
-        // Logo de Weather Report
-        JLabel lblLogoWeather = new JLabel();
-        lblLogoWeather.setHorizontalAlignment(JLabel.CENTER);
-        lblLogoWeather.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-        lblLogoWeather.setPreferredSize(new Dimension(120, 120));
-        try {
-            // Intentar cargar desde diferentes ubicaciones
-            ImageIcon icon = null;
-            String[] rutasPosibles = {
-                "/logo_weather_report.png",
-                "/resources/logo_weather_report.png",
-                "src/resources/logo_weather_report.png",
-                "resources/logo_weather_report.png"
-            };
+        JPanel producto = new JPanel();
+        producto.setOpaque(false);
+        producto.setLayout(new BoxLayout(producto, BoxLayout.Y_AXIS));
+        producto.add(alinear(lblLogo));
+        producto.add(Box.createVerticalStrut(20));
+        producto.add(alinear(lblMarca));
+        producto.add(Box.createVerticalStrut(6));
+        producto.add(alinear(lblLema));
 
-            for (String ruta : rutasPosibles) {
-                try {
-                    if (ruta.startsWith("/")) {
-                        icon = new ImageIcon(getClass().getResource(ruta));
-                    } else {
-                        icon = new ImageIcon(ruta);
-                    }
-                    if (icon.getIconWidth() > 0) break;
-                } catch (Exception e) {
-                    // Continuar con la siguiente ruta
-                }
-            }
+        franja.add(producto, BorderLayout.NORTH);
+        return franja;
+    }
 
-            if (icon != null && icon.getIconWidth() > 0) {
-                // Escalar la imagen preservando la proporción (caja 120x120)
-                java.awt.Image img = icon.getImage();
-                int w = img.getWidth(null);
-                int h = img.getHeight(null);
-                int maxW = 130;
-                int maxH = 110;
-                double escala = Math.min(1.0, Math.min((double) maxW / w, (double) maxH / h));
-                int nuevoW = Math.max(1, (int) Math.round(w * escala));
-                int nuevoH = Math.max(1, (int) Math.round(h * escala));
-                lblLogoWeather.setIcon(new ImageIcon(
-                        img.getScaledInstance(nuevoW, nuevoH, java.awt.Image.SCALE_SMOOTH)));
-            } else {
-                lblLogoWeather.setText("(Logo no encontrado)");
-                lblLogoWeather.setForeground(ColoresUI.GRIS_CLARO);
-            }
-        } catch (Exception e) {
-            lblLogoWeather.setText("(Logo no encontrado)");
-            lblLogoWeather.setForeground(ColoresUI.GRIS_CLARO);
-        }
+    /** Formulario centrado de ancho fijo: etiquetas sobre los campos y una sola acción principal. */
+    private JPanel construirFormulario() {
+        JLabel lblTitulo = new JLabel("Iniciar sesión");
+        lblTitulo.setFont(new Font("Segoe UI Semibold", Font.PLAIN, 26));
+        lblTitulo.setForeground(ColoresUI.TEXTO_PRIMARIO);
+        JLabel lblSub = new JLabel("Ingrese su usuario y contraseña para continuar.");
+        lblSub.setFont(UIFactory.FUENTE_NORMAL.deriveFont(14f));
+        lblSub.setForeground(ColoresUI.TEXTO_SUAVE);
 
-        // Logo de la aplicación
-        JLabel lblLogo = new JLabel();
-        try {
-            // Intentar cargar desde diferentes ubicaciones
-            ImageIcon icon = null;
-            String[] rutasPosibles = {
-                "/logo_weather_report.png",
-                "/resources/logo_weather_report.png",
-                "src/resources/logo_weather_report.png",
-                "resources/logo_weather_report.png"
-            };
-            
-            for (String ruta : rutasPosibles) {
-                try {
-                    if (ruta.startsWith("/")) {
-                        icon = new ImageIcon(getClass().getResource(ruta));
-                    } else {
-                        icon = new ImageIcon(ruta);
-                    }
-                    if (icon.getIconWidth() > 0) break;
-                } catch (Exception e) {
-                    // Continuar con la siguiente ruta
-                }
-            }
-            
-            if (icon != null && icon.getIconWidth() > 0) {
-                // Escalar la imagen a un tamaño apropiado
-                java.awt.Image img = icon.getImage().getScaledInstance(100, 100, java.awt.Image.SCALE_SMOOTH);
-                lblLogo.setIcon(new ImageIcon(img));
-            } else {
-                lblLogo.setText("(Logo no encontrado)");
-                lblLogo.setForeground(ColoresUI.GRIS_CLARO);
-            }
-        } catch (Exception e) {
-            lblLogo.setText("(Logo no encontrado)");
-            lblLogo.setForeground(ColoresUI.GRIS_CLARO);
-        }
-        lblLogo.setHorizontalAlignment(JLabel.CENTER);
-        lblLogo.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        btnLogin.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+        btnLogin.setPreferredSize(new Dimension(340, 42));
 
-        JLabel lblProteccion = new JLabel("Weather Report");
-        lblProteccion.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        lblProteccion.setForeground(ColoresUI.BLANCO);
-        lblProteccion.setHorizontalAlignment(JLabel.CENTER);
-        lblProteccion.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        JButton btnRegistrarse = UIFactory.crearBotonTexto("Crear cuenta");
+        btnRegistrarse.addActionListener(e -> controller.abrirRegistro());
+        JButton btnRecuperar = UIFactory.crearBotonTexto("Recuperar contraseña");
+        btnRecuperar.addActionListener(e -> controller.abrirRecuperacion());
+        JPanel enlaces = new JPanel(new BorderLayout());
+        enlaces.setOpaque(false);
+        enlaces.add(btnRegistrarse, BorderLayout.WEST);
+        enlaces.add(btnRecuperar, BorderLayout.EAST);
 
-        JLabel lblSub = new JLabel("<html><center>Sistema de monitoreo<br>meteorológico</center></html>");
-        lblSub.setFont(UIFactory.FUENTE_SUBTITULO);
-        lblSub.setForeground(ColoresUI.GRIS_CLARO);
-        lblSub.setHorizontalAlignment(JLabel.CENTER);
+        JButton btnCancelar = UIFactory.crearBotonTexto("Salir");
+        btnCancelar.addActionListener(e -> controller.salir());
+        JPanel pie = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        pie.setOpaque(false);
+        pie.add(btnCancelar);
 
-        // Panel superior: Weather Report + Logo
-        JPanel panelWeather = new JPanel(new BorderLayout());
-        panelWeather.setOpaque(false);
-        panelWeather.add(lblMarca, BorderLayout.NORTH);
-        panelWeather.add(lblLogoWeather, BorderLayout.CENTER);
-
-        // Panel inferior: Protección Civil + Logo
-        JPanel panelProteccion = new JPanel(new BorderLayout());
-        panelProteccion.setOpaque(false);
-        panelProteccion.add(lblProteccion, BorderLayout.NORTH);
-        panelProteccion.add(lblLogo, BorderLayout.CENTER);
-
-        // Panel central que contiene ambos
-        JPanel panelCentral = new JPanel(new BorderLayout(0, 10));
-        panelCentral.setOpaque(false);
-        panelCentral.add(panelWeather, BorderLayout.NORTH);
-        panelCentral.add(panelProteccion, BorderLayout.CENTER);
-
-        JPanel lateralCentro = new JPanel(new BorderLayout());
-        lateralCentro.setOpaque(false);
-        lateralCentro.add(panelCentral, BorderLayout.NORTH);
-        
-        JPanel panelSub = new JPanel(new BorderLayout());
-        panelSub.setOpaque(false);
-        panelSub.add(lblSub, BorderLayout.CENTER);
-        lateralCentro.add(panelSub, BorderLayout.SOUTH);
-
-        lateral.add(lateralCentro, BorderLayout.CENTER);
+        JPanel columna = new JPanel();
+        columna.setOpaque(false);
+        columna.setLayout(new BoxLayout(columna, BoxLayout.Y_AXIS));
+        columna.setPreferredSize(new Dimension(340, 440));
+        columna.add(alinear(lblTitulo));
+        columna.add(Box.createVerticalStrut(4));
+        columna.add(alinear(lblSub));
+        columna.add(Box.createVerticalStrut(28));
+        columna.add(alinear(campo("Usuario", txtUsuario)));
+        columna.add(Box.createVerticalStrut(16));
+        columna.add(alinear(campo("Contraseña", txtContrasena)));
+        columna.add(Box.createVerticalStrut(10));
+        columna.add(alinear(lblError));
+        columna.add(Box.createVerticalStrut(10));
+        columna.add(alinear(btnLogin));
+        columna.add(Box.createVerticalStrut(20));
+        columna.add(alinear(separador()));
+        columna.add(Box.createVerticalStrut(10));
+        columna.add(alinear(enlaces));
+        columna.add(Box.createVerticalGlue());
+        columna.add(alinear(pie));
 
         JPanel formulario = new JPanel(new GridBagLayout());
-        formulario.setBackground(ColoresUI.VINO);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 10, 8, 10);
-        gbc.anchor = GridBagConstraints.WEST;
+        formulario.setBackground(ColoresUI.FONDO_RAIZ);
+        formulario.setBorder(BorderFactory.createEmptyBorder(32, 40, 24, 40));
+        formulario.add(columna);
+        return formulario;
+    }
 
-        JLabel lblTitulo = UIFactory.crearLabelTitulo("Iniciar Sesión");
-        lblTitulo.setForeground(ColoresUI.BLANCO);
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 2;
-        formulario.add(lblTitulo, gbc);
+    private static JPanel campo(String etiqueta, JComponent control) {
+        JLabel lbl = new JLabel(etiqueta);
+        lbl.setFont(UIFactory.FUENTE_NORMAL);
+        lbl.setForeground(ColoresUI.TEXTO_SECUNDARIO);
+        JPanel p = new JPanel(new BorderLayout(0, 6));
+        p.setOpaque(false);
+        p.add(lbl, BorderLayout.NORTH);
+        p.add(control, BorderLayout.CENTER);
+        return p;
+    }
 
-        JLabel lblUsuario = UIFactory.crearLabel("Usuario:");
-        lblUsuario.setForeground(ColoresUI.BLANCO);
-        lblUsuario.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        gbc.gridy = 1;
-        gbc.gridwidth = 1;
-        gbc.insets = new Insets(15, 10, 15, 10);
-        formulario.add(lblUsuario, gbc);
-        gbc.gridx = 1;
-        formulario.add(txtUsuario, gbc);
+    private static JComponent separador() {
+        JPanel linea = new JPanel();
+        linea.setBackground(ColoresUI.BORDE);
+        linea.setPreferredSize(new Dimension(340, 1));
+        return linea;
+    }
 
-        JLabel lblPass = UIFactory.crearLabel("Contraseña:");
-        lblPass.setForeground(ColoresUI.BLANCO);
-        lblPass.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        gbc.gridy = 2;
-        gbc.gridx = 0;
-        formulario.add(lblPass, gbc);
-        gbc.gridx = 1;
-        formulario.add(txtContrasena, gbc);
+    /** Ancho completo de la columna y alto natural (BoxLayout no estira en vertical). */
+    private static JComponent alinear(JComponent c) {
+        c.setAlignmentX(Component.LEFT_ALIGNMENT);
+        c.setMaximumSize(new Dimension(Integer.MAX_VALUE, c.getPreferredSize().height));
+        return c;
+    }
 
-        JButton btnLoginLocal = btnLogin;
-        btnLoginLocal.setPreferredSize(new Dimension(250, 45));
-        btnLoginLocal.setFont(new Font("Segoe UI", Font.BOLD, 14));
-
-        JButton btnCancelar = UIFactory.crearBotonSecundario("Cancelar");
-        btnCancelar.setPreferredSize(new Dimension(110, 40));
-        btnCancelar.addActionListener(e -> controller.salir());
-
-        JPanel botonera = new JPanel(new BorderLayout(10, 0));
-        botonera.setBackground(ColoresUI.VINO);
-        botonera.add(btnLoginLocal, BorderLayout.CENTER);
-        botonera.add(btnCancelar, BorderLayout.EAST);
-
-        gbc.gridy = 3;
-        gbc.gridx = 0;
-        gbc.gridwidth = 2;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        formulario.add(botonera, gbc);
-
-        gbc.gridy = 4;
-        gbc.gridx = 0;
-        gbc.fill = GridBagConstraints.NONE;
-        lblError.setForeground(ColoresUI.ALERTA_CRITICA);
-        formulario.add(lblError, gbc);
-
-        gbc.gridy = 5;
-        gbc.gridx = 0;
-        gbc.gridwidth = 2;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(6, 10, 6, 10);
-        JLabel lblCrear = UIFactory.crearLabel("¿No tienes cuenta?");
-        lblCrear.setForeground(ColoresUI.BLANCO);
-        lblCrear.setHorizontalAlignment(JLabel.CENTER);
-        formulario.add(lblCrear, gbc);
-
-        gbc.gridy = 6;
-        JButton btnRegistrarse = UIFactory.crearBotonSecundario("Crear cuenta de consulta");
-        btnRegistrarse.setPreferredSize(new Dimension(250, 40));
-        btnRegistrarse.addActionListener(e -> controller.abrirRegistro());
-        formulario.add(btnRegistrarse, gbc);
-
-        gbc.gridy = 7;
-        gbc.insets = new Insets(4, 10, 4, 10);
-        JButton btnRecuperar = UIFactory.crearBotonSecundario("Recuperar contraseña");
-        btnRecuperar.setPreferredSize(new Dimension(250, 40));
-        btnRecuperar.addActionListener(e -> controller.abrirRecuperacion());
-        formulario.add(btnRecuperar, gbc);
-
-        raiz.add(lateral, BorderLayout.WEST);
-        raiz.add(formulario, BorderLayout.CENTER);
-
-        setContentPane(raiz);
+    /** Carga una imagen de recursos escalada dentro de una caja, conservando su proporción. */
+    private ImageIcon cargarImagen(String nombre, int maxAncho, int maxAlto) {
+        String[] rutasPosibles = {
+            "/" + nombre,
+            "/resources/" + nombre,
+            "src/resources/" + nombre,
+            "resources/" + nombre
+        };
+        for (String ruta : rutasPosibles) {
+            try {
+                ImageIcon icon;
+                if (ruta.startsWith("/")) {
+                    java.net.URL url = getClass().getResource(ruta);
+                    if (url == null) {
+                        continue;
+                    }
+                    icon = new ImageIcon(url);
+                } else {
+                    icon = new ImageIcon(ruta);
+                }
+                if (icon.getIconWidth() > 0) {
+                    java.awt.Image img = icon.getImage();
+                    double escala = Math.min((double) maxAncho / img.getWidth(null),
+                            (double) maxAlto / img.getHeight(null));
+                    int w = Math.max(1, (int) Math.round(img.getWidth(null) * escala));
+                    int h = Math.max(1, (int) Math.round(img.getHeight(null) * escala));
+                    return new ImageIcon(img.getScaledInstance(w, h, java.awt.Image.SCALE_SMOOTH));
+                }
+            } catch (Exception e) {
+                // Continuar con la siguiente ruta
+            }
+        }
+        return null;
     }
 
     public String getUsuario() {
@@ -296,11 +224,11 @@ public class LoginView extends JFrame {
 
     public void mostrarError(String mensaje) {
         lblError.setText(mensaje);
-        lblError.setForeground(ColoresUI.ALERTA_CRITICA);
+        lblError.setForeground(COLOR_ERROR);
     }
 
     public void mostrarExito(String mensaje) {
         lblError.setText(mensaje);
-        lblError.setForeground(ColoresUI.ALERTA_NORMAL);
+        lblError.setForeground(ColoresUI.ALERTA_NORMAL_OSC);
     }
 }

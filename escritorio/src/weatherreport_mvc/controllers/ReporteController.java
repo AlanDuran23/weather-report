@@ -2,10 +2,12 @@ package weatherreport_mvc.controllers;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import javax.swing.JComponent;
 import weatherreport_mvc.database.RegistroDAO;
 import weatherreport_mvc.models.ConfiguracionSistema;
+import weatherreport_mvc.utils.Bitacora;
 import weatherreport_mvc.utils.NarrativaMeteorologica;
 import weatherreport_mvc.utils.PDFGenerator;
 
@@ -22,8 +24,14 @@ public class ReporteController {
 
     /** Fecha propuesta al abrir el módulo: el último día con datos, o hoy. */
     public LocalDate fechaInicial() {
-        LocalDate ultima = RegistroDAO.obtenerUltimaFecha();
-        return ultima == null ? LocalDate.now() : ultima;
+        try {
+            LocalDate ultima = RegistroDAO.obtenerUltimaFecha();
+            return ultima == null ? LocalDate.now() : ultima;
+        } catch (SQLException e) {
+            // Sin conexión se propone hoy; la narrativa mostrará el error de la BD
+            Bitacora.error("ReporteController.fechaInicial", e);
+            return LocalDate.now();
+        }
     }
 
     private static LocalDate inicioSemana(LocalDate fecha) {
@@ -92,13 +100,13 @@ public class ReporteController {
     }
 
     /** Narrativa del resumen meteorológico del día indicado. */
-    public String narrativaDiaria(LocalDate fecha) {
+    public String narrativaDiaria(LocalDate fecha) throws SQLException {
         return NarrativaMeteorologica.construir(NarrativaMeteorologica.Periodo.DIARIO,
                 fecha, fecha, RegistroDAO.obtenerPorDia(fecha));
     }
 
     /** Narrativa de los 7 días que terminan en la fecha indicada. */
-    public String narrativaSemanal(LocalDate fecha) {
+    public String narrativaSemanal(LocalDate fecha) throws SQLException {
         LocalDate desde = inicioSemana(fecha);
         return NarrativaMeteorologica.construir(NarrativaMeteorologica.Periodo.SEMANAL,
                 desde, fecha, RegistroDAO.obtenerEntre(
@@ -106,7 +114,7 @@ public class ReporteController {
     }
 
     /** Narrativa del mes al que pertenece la fecha indicada. */
-    public String narrativaMensual(LocalDate fecha) {
+    public String narrativaMensual(LocalDate fecha) throws SQLException {
         LocalDate desde = inicioMes(fecha);
         LocalDate hasta = finMes(fecha);
         return NarrativaMeteorologica.construir(NarrativaMeteorologica.Periodo.MENSUAL,

@@ -1,7 +1,6 @@
 package weatherreport_mvc.views;
 
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -55,8 +54,8 @@ public class RecuperarContrasenaDialog extends JDialog {
 
         construirInterfaz();
         pack();
-        setMinimumSize(new Dimension(520, 380));
-        setSize(520, 390);
+        // Alto según el contenido (los campos cambian de tamaño con el tema); ancho mínimo fijo
+        setSize(Math.max(getWidth(), 520), getHeight());
         setLocationRelativeTo(owner);
     }
 
@@ -73,7 +72,7 @@ public class RecuperarContrasenaDialog extends JDialog {
         int fila = 0;
 
         JLabel lblInfo = UIFactory.crearLabel(
-                "<html>Solicite a un <b>Ingeniero</b> un código de recuperación para su "
+                "<html><body style='width:440px'>Solicite a un <b>Ingeniero</b> un código de recuperación para su "
                 + "cuenta (se genera en <b>Gestión de Usuarios</b>). El código es de "
                 + "<b>un solo uso</b> y vence a los <b>30 minutos</b>.</html>");
         lblInfo.setForeground(ColoresUI.TEXTO_SECUNDARIO);
@@ -145,7 +144,7 @@ public class RecuperarContrasenaDialog extends JDialog {
     }
 
     private void mostrarError(String mensaje) {
-        lblMensaje.setText("<html>" + mensaje + "</html>");
+        lblMensaje.setText("<html><body style='width:440px'>" + mensaje + "</body></html>");
         lblMensaje.setForeground(ColoresUI.ALERTA_CRITICA_OSC);
     }
 }

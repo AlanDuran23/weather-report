@@ -1,7 +1,7 @@
 package weatherreport_mvc.views;
 
 import java.awt.BorderLayout;
-import java.awt.Dimension;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import javax.swing.JTextField;
@@ -18,12 +18,8 @@ import weatherreport_mvc.models.Usuario;
 import weatherreport_mvc.utils.ColoresUI;
 import weatherreport_mvc.utils.DateUtil;
 import weatherreport_mvc.utils.EstiloUI;
-import weatherreport_mvc.utils.EstiloUI.PanelRedondeado;
 import weatherreport_mvc.utils.UIFactory;
 import java.awt.Component;
-import javax.swing.SwingConstants;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.JTableHeader;
 
 /**
  * Módulo 6 - Gestión de Usuarios. Directorio de usuarios con CRUD completo y
@@ -61,99 +57,107 @@ public class UsuariosPanel extends JPanel {
         
     }
     private void configurarTabla() {
-    tabla.setRowHeight(30);
-    tabla.setAutoCreateRowSorter(false);
-    tabla.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        tabla.setAutoCreateRowSorter(false);
+        tabla.setAutoResizeMode(JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS);
+        UIFactory.columnasNumericas(tabla, 0);
+        tabla.getTableHeader().setResizingAllowed(false);
 
-    DefaultTableCellRenderer centro = new DefaultTableCellRenderer();
-    centro.setHorizontalAlignment(SwingConstants.CENTER);
-
-    for (int i = 0; i < tabla.getColumnCount(); i++) {
-        tabla.getColumnModel().getColumn(i).setCellRenderer(centro);
+        tabla.getColumnModel().getColumn(0).setPreferredWidth(80);    // ID
+        tabla.getColumnModel().getColumn(1).setPreferredWidth(320);   // Nombre Completo
+        tabla.getColumnModel().getColumn(2).setPreferredWidth(180);   // Usuario
+        tabla.getColumnModel().getColumn(3).setPreferredWidth(180);   // Rol
+        tabla.getColumnModel().getColumn(4).setPreferredWidth(160);   // Estado
+        tabla.getColumnModel().getColumn(5).setPreferredWidth(220);   // Fecha Registro
+        tabla.getColumnModel().getColumn(4).setCellRenderer(new EstadoRenderer());
     }
 
-    JTableHeader header = tabla.getTableHeader();
-    header.setReorderingAllowed(false);
-    header.setResizingAllowed(false);
-    header.setDefaultRenderer(new DefaultTableCellRenderer() {
-        @Override
-        public Component getTableCellRendererComponent(
-                javax.swing.JTable table,
-                Object value,
-                boolean isSelected,
-                boolean hasFocus,
-                int row,
-                int column) {
+    /** Estado con punto de color: verde si está activo, gris si no. */
+    private static final class EstadoRenderer extends UIFactory.CeldaRenderer {
 
+        @Override
+        public Component getTableCellRendererComponent(javax.swing.JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
             JLabel lbl = (JLabel) super.getTableCellRendererComponent(
                     table, value, isSelected, hasFocus, row, column);
-
-            lbl.setHorizontalAlignment(SwingConstants.CENTER);
-            lbl.setOpaque(true);
-            lbl.setBackground(ColoresUI.FONDO_RAIZ);
-            lbl.setForeground(ColoresUI.TEXTO_VINO);
-            lbl.setFont(UIFactory.FUENTE_NEGRITA);
-            lbl.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 1, ColoresUI.BORDE));
+            boolean activo = "Activo".equals(value);
+            lbl.setIcon(new PuntoEstado(activo ? ColoresUI.ALERTA_NORMAL_OSC : ColoresUI.TEXTO_SUAVE));
+            lbl.setIconTextGap(8);
+            if (!isSelected && !activo) {
+                lbl.setForeground(ColoresUI.TEXTO_SUAVE);
+            }
             return lbl;
         }
-    });
+    }
 
-    tabla.getColumnModel().getColumn(0).setPreferredWidth(130);   // ID
-    tabla.getColumnModel().getColumn(1).setPreferredWidth(320);  // Nombre Completo
-    tabla.getColumnModel().getColumn(2).setPreferredWidth(160);  // Usuario
-    tabla.getColumnModel().getColumn(3).setPreferredWidth(200);  // Rol
-    tabla.getColumnModel().getColumn(4).setPreferredWidth(160);  // Estado
-    tabla.getColumnModel().getColumn(5).setPreferredWidth(280);  // Fecha Registro
-}
+    private record PuntoEstado(Color color) implements javax.swing.Icon {
+
+        @Override
+        public void paintIcon(Component c, java.awt.Graphics g, int x, int y) {
+            java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.fillOval(x, y, 7, 7);
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() {
+            return 7;
+        }
+
+        @Override
+        public int getIconHeight() {
+            return 7;
+        }
+    }
 
     private void construirInterfaz() {
-        PanelRedondeado encabezado = EstiloUI.crearPanelDegradadoVino();
-        encabezado.setBorder(BorderFactory.createEmptyBorder(18, 20, 8, 20));
-        
-        JLabel lblTitulo = new JLabel("Gestión de Usuarios");
-        lblTitulo.setFont(UIFactory.FUENTE_TITULO_SLIDE);
-        lblTitulo.setForeground(ColoresUI.BLANCO);
-        encabezado.add(lblTitulo, BorderLayout.NORTH);
-        
-        JPanel barra = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
-        barra.setBackground(ColoresUI.FONDO_RAIZ);
-        barra.setBorder(BorderFactory.createEmptyBorder(10, 20, 8, 20));
+        JPanel encabezado = EstiloUI.crearEncabezadoModulo("Gestión de Usuarios",
+                "Cuentas con acceso al sistema. Seleccione una fila para editarla.");
 
-        JButton btnNuevo = agrandar(UIFactory.crearBotonPrimario("Nuevo Usuario"));
+        // Acciones sobre la cuenta seleccionada a la izquierda; eliminar, aparte a la derecha
+        JPanel acciones = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        acciones.setOpaque(false);
+
+        JButton btnNuevo = UIFactory.crearBotonPrimario("Nuevo usuario");
         btnNuevo.addActionListener(e -> abrirDialogo(null));
-        barra.add(btnNuevo);
+        acciones.add(btnNuevo);
 
-        JButton btnEditar = agrandar(UIFactory.crearBotonSecundario("Editar"));
+        JButton btnEditar = UIFactory.crearBotonSecundario("Editar");
         btnEditar.addActionListener(e -> editarSeleccionado());
-        barra.add(btnEditar);
+        acciones.add(btnEditar);
 
-        JButton btnEstado = agrandar(UIFactory.crearBotonSecundario("Activar / Desactivar"));
+        JButton btnEstado = UIFactory.crearBotonSecundario("Activar / Desactivar");
         btnEstado.addActionListener(e -> alternarEstado());
-        barra.add(btnEstado);
+        acciones.add(btnEstado);
 
-        JButton btnCodigo = agrandar(UIFactory.crearBotonSecundario("Código de recuperación"));
+        JButton btnCodigo = UIFactory.crearBotonSecundario("Código de recuperación");
         btnCodigo.addActionListener(e -> generarCodigoRecuperacion());
-        barra.add(btnCodigo);
+        acciones.add(btnCodigo);
 
-        JButton btnEliminar = agrandar(UIFactory.crearBotonPeligro("Eliminar"));
+        JButton btnEliminar = UIFactory.crearBotonPeligro("Eliminar");
         btnEliminar.addActionListener(e -> eliminarSeleccionado());
-        barra.add(btnEliminar);
+
+        JPanel barra = new JPanel(new BorderLayout());
+        barra.setBackground(ColoresUI.FONDO_RAIZ);
+        barra.setBorder(BorderFactory.createEmptyBorder(16, 12, 12, 20));
+        barra.add(acciones, BorderLayout.WEST);
+        barra.add(btnEliminar, BorderLayout.EAST);
 
         JPanel superior = new JPanel(new BorderLayout());
         superior.setOpaque(false);
         superior.add(encabezado, BorderLayout.NORTH);
         superior.add(barra, BorderLayout.SOUTH);
 
-        add(superior, BorderLayout.NORTH);
-        add(UIFactory.estilizarTabla(tabla), BorderLayout.CENTER);
-    }
+        JPanel zonaTabla = new JPanel(new BorderLayout());
+        zonaTabla.setBackground(ColoresUI.FONDO_RAIZ);
+        zonaTabla.setBorder(BorderFactory.createEmptyBorder(0, 20, 20, 20));
+        zonaTabla.add(UIFactory.estilizarTabla(tabla), BorderLayout.CENTER);
 
-    private JButton agrandar(JButton boton) {
-    Dimension d = boton.getPreferredSize();
-    boton.setPreferredSize(new Dimension(
-            (int) (d.width * 1.30), (int) (d.height * 0.875)));
-    return boton;
-}
+        add(superior, BorderLayout.NORTH);
+        add(zonaTabla, BorderLayout.CENTER);
+    }
 
     private void abrirDialogo(Usuario usuario) {
         NuevoUsuarioDialog dialogo = new NuevoUsuarioDialog(this, controller, usuario);
@@ -240,6 +244,13 @@ public class UsuariosPanel extends JPanel {
             campo,
             "Entrégueselo al usuario. Es de un solo uso y vence en 30 minutos."
         }, "Código de recuperación", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    /** No se pudo leer la lista: se avisa en lugar de mostrar una tabla vacía sin explicación. */
+    public void mostrarErrorCarga(String mensaje) {
+        modelo.setRowCount(0);
+        JOptionPane.showMessageDialog(this, "No se pudo cargar la lista de usuarios.\n" + mensaje,
+                "Gestión de Usuarios", JOptionPane.ERROR_MESSAGE);
     }
 
     public void mostrarUsuarios(List<Usuario> usuarios) {

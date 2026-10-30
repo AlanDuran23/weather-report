@@ -1,23 +1,24 @@
 package weatherreport_mvc.controllers;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.concurrent.ExecutionException;
 import javax.swing.SwingWorker;
-import weatherreport_mvc.models.ConfiguracionSistema;
-import weatherreport_mvc.utils.MySqlLocalizador;
+import weatherreport_mvc.database.ConexionBD;
+import weatherreport_mvc.database.RespaldoBD;
+import weatherreport_mvc.utils.Bitacora;
 import weatherreport_mvc.views.RespaldoPanel;
 
 /**
- * Controlador del módulo de Respaldo y Restauración. Ejecuta los comandos
- * del sistema (mysqldump y mysql) mediante ProcessBuilder.
+ * Controlador del módulo de Respaldo y Restauración. Respalda y restaura por la misma
+ * conexión JDBC de la aplicación ({@link RespaldoBD}), así funciona igual con MySQL local
+ * que con el servidor en la nube y no depende de mysqldump.exe ni mysql.exe.
  */
 public class RespaldoController {
 
@@ -29,61 +30,60 @@ public class RespaldoController {
 
     public void realizarRespaldo(File destino) {
         view.mostrarProgreso("Iniciando respaldo de la base de datos...");
-        new SwingWorker<Integer, Void>() {
-            private String salida = "";
+        new SwingWorker<String, Void>() {
+            private File temporal;
 
-            @Override
-            protected Integer doInBackground() {
+            private void borrarTemporal() {
+                if (temporal == null) {
+                    return;
+                }
                 try {
-                    ConfiguracionSistema cfg = ConfiguracionSistema.cargar();
-                    String rutaDump = MySqlLocalizador.localizar(cfg.getRutaMysqldump());
-                    if (rutaDump == null) {
-                        salida = "No se encontró mysqldump.exe. Verifique la instalación de "
-                                + "MySQL (p. ej. C:\\xampp\\mysql\\bin) o agregue su carpeta "
-                                + "bin al PATH.";
-                        return -1;
-                    }
-                    List<String> cmd = new ArrayList<>();
-                    cmd.add(rutaDump);
-                    cmd.add("--host=" + cfg.getHostBD());
-                    cmd.add("--port=" + cfg.getPuertoBD());
-                    cmd.add("--user=" + cfg.getUsuarioBD());
-                    cmd.add(cfg.getNombreBD());
+                    Files.deleteIfExists(temporal.toPath());
+                } catch (IOException e) {
+                    Bitacora.error("RespaldoController: no se pudo borrar " + temporal, e);
+                }
+            }
 
+            /** null si todo salió bien; si no, el motivo para el usuario. */
+            @Override
+            protected String doInBackground() {
+                try {
                     // Se escribe a un temporal para no dañar un respaldo previo si el volcado falla.
                     File carpeta = destino.getAbsoluteFile().getParentFile();
-                    File temporal = File.createTempFile("respaldo_", ".sql.tmp", carpeta);
-                    ProcessBuilder pb = new ProcessBuilder(cmd);
-                    configurarCredencial(pb, cfg.getContrasenaBD());
-                    pb.redirectOutput(temporal);
-                    Process proceso = pb.start();
-                    proceso.getOutputStream().close();
-                    salida = leerSalida(proceso.getErrorStream());
-                    int codigo = proceso.waitFor();
-                    if (codigo != 0) {
-                        Files.deleteIfExists(temporal.toPath());
-                        return codigo;
+                    temporal = File.createTempFile("respaldo_", ".sql.tmp", carpeta);
+                    try (Connection conn = ConexionBD.getConnection();
+                            Writer out = Files.newBufferedWriter(temporal.toPath(), StandardCharsets.UTF_8)) {
+                        RespaldoBD.exportar(conn, out);
                     }
-                    Files.move(temporal.toPath(), destino.toPath(),
-                            StandardCopyOption.REPLACE_EXISTING);
-                    return codigo;
-                } catch (IOException | InterruptedException e) {
-                    salida = e.getMessage();
-                    return -1;
+                    Files.move(temporal.toPath(), destino.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    return null;
+                } catch (SQLException e) {
+                    Bitacora.error("RespaldoController.realizarRespaldo: " + destino, e);
+                    return ConexionBD.mensajeError(e);
+                } catch (IOException e) {
+                    Bitacora.error("RespaldoController.realizarRespaldo: " + destino, e);
+                    return Bitacora.mensaje(e);
+                } finally {
+                    // Cualquier salida que no llegó al destino (error, excepción) borra el temporal:
+                    // antes quedaban respaldo_*.sql.tmp huérfanos en la carpeta de respaldos
+                    borrarTemporal();
                 }
             }
 
             @Override
             protected void done() {
                 try {
-                    int codigo = get();
-                    if (codigo == 0) {
+                    String error = get();
+                    if (error == null) {
                         view.mostrarExito("Respaldo completado.", destino);
                     } else {
-                        view.mostrarError("El respaldo falló. " + salida);
+                        view.mostrarError("El respaldo falló. " + error);
                     }
-                } catch (Exception e) {
-                    view.mostrarError("Error al ejecutar el respaldo: " + e.getMessage());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException e) {
+                    Bitacora.error("RespaldoController.realizarRespaldo", e.getCause());
+                    view.mostrarError("Error al ejecutar el respaldo: " + Bitacora.mensaje(e));
                 }
             }
         }.execute();
@@ -91,74 +91,41 @@ public class RespaldoController {
 
     public void restaurarRespaldo(File archivo) {
         view.mostrarProgreso("Restaurando respaldo " + archivo.getName() + " ...");
-        new SwingWorker<Integer, Void>() {
-            private String salida = "";
-
+        new SwingWorker<String, Void>() {
+            /** null si todo salió bien; si no, el motivo para el usuario. */
             @Override
-            protected Integer doInBackground() {
+            protected String doInBackground() {
                 try {
-                    ConfiguracionSistema cfg = ConfiguracionSistema.cargar();
-                    String rutaMysql = MySqlLocalizador.localizar(cfg.getRutaMysql());
-                    if (rutaMysql == null) {
-                        salida = "No se encontró mysql.exe. Verifique la instalación de "
-                                + "MySQL (p. ej. C:\\xampp\\mysql\\bin) o agregue su carpeta "
-                                + "bin al PATH.";
-                        return -1;
+                    String sql = Files.readString(archivo.toPath(), StandardCharsets.UTF_8);
+                    try (Connection conn = ConexionBD.getConnection()) {
+                        RespaldoBD.importar(conn, sql);
                     }
-                    List<String> cmd = new ArrayList<>();
-                    cmd.add(rutaMysql);
-                    cmd.add("--host=" + cfg.getHostBD());
-                    cmd.add("--port=" + cfg.getPuertoBD());
-                    cmd.add("--user=" + cfg.getUsuarioBD());
-                    cmd.add(cfg.getNombreBD());
-
-                    ProcessBuilder pb = new ProcessBuilder(cmd);
-                    pb.redirectErrorStream(true);
-                    configurarCredencial(pb, cfg.getContrasenaBD());
-                    pb.redirectInput(archivo);
-                    Process proceso = pb.start();
-                    proceso.getOutputStream().close();
-                    salida = leerSalida(proceso.getInputStream());
-                    int codigo = proceso.waitFor();
-                    return codigo;
-                } catch (IOException | InterruptedException e) {
-                    salida = e.getMessage();
-                    return -1;
+                    return null;
+                } catch (SQLException e) {
+                    Bitacora.error("RespaldoController.restaurarRespaldo: " + archivo, e);
+                    return ConexionBD.esFalloDeConexion(e) ? ConexionBD.mensajeError(e) : e.getMessage();
+                } catch (IOException e) {
+                    Bitacora.error("RespaldoController.restaurarRespaldo: " + archivo, e);
+                    return Bitacora.mensaje(e);
                 }
             }
 
             @Override
             protected void done() {
                 try {
-                    int codigo = get();
-                    if (codigo == 0) {
+                    String error = get();
+                    if (error == null) {
                         view.mostrarExito("Restauración completada.", archivo);
                     } else {
-                        view.mostrarError("La restauración falló. " + salida);
+                        view.mostrarError("La restauración falló. " + error);
                     }
-                } catch (Exception e) {
-                    view.mostrarError("Error al restaurar: " + e.getMessage());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException e) {
+                    Bitacora.error("RespaldoController.restaurarRespaldo", e.getCause());
+                    view.mostrarError("Error al restaurar: " + Bitacora.mensaje(e));
                 }
             }
         }.execute();
-    }
-
-    /** Pasa la contraseña de MySQL por variable de entorno (evita exponerla en argv). */
-    private static void configurarCredencial(ProcessBuilder pb, String clave) {
-        if (clave != null && !clave.isEmpty()) {
-            pb.environment().put("MYSQL_PWD", clave);
-        }
-    }
-
-    private static String leerSalida(InputStream in) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        try (BufferedReader br = new BufferedReader(
-                new InputStreamReader(in, StandardCharsets.UTF_8))) {
-            String linea;
-            while ((linea = br.readLine()) != null) {
-                sb.append(linea).append('\n');
-            }
-        }
-        return sb.toString().trim();
     }
 }

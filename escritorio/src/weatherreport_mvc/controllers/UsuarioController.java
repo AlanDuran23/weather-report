@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import weatherreport_mvc.database.ConexionBD;
 import weatherreport_mvc.database.UsuarioDAO;
 import weatherreport_mvc.models.Usuario;
+import weatherreport_mvc.utils.Bitacora;
 import weatherreport_mvc.utils.HashUtil;
 import weatherreport_mvc.views.UsuariosPanel;
 
@@ -43,7 +44,12 @@ public class UsuarioController {
     }
 
     public void cargarUsuarios() {
-        view.mostrarUsuarios(UsuarioDAO.obtenerTodos());
+        try {
+            view.mostrarUsuarios(UsuarioDAO.obtenerTodos());
+        } catch (SQLException e) {
+            Bitacora.error("UsuarioController.cargarUsuarios", e);
+            view.mostrarErrorCarga(ConexionBD.mensajeError(e));
+        }
     }
 
     /** @return null si fue exitoso, o un mensaje de error. */
@@ -57,9 +63,6 @@ public class UsuarioController {
         if (contrasena == null || contrasena.length() < 6) {
             return "La contraseña debe tener al menos 6 caracteres.";
         }
-        if (UsuarioDAO.existeUsuario(usuario.trim())) {
-            return "El nombre de usuario ya está registrado.";
-        }
         Usuario u = new Usuario();
         u.setNombreCompleto(nombre.trim());
         u.setUsuario(usuario.trim());
@@ -67,10 +70,15 @@ public class UsuarioController {
         u.setRol(rol);
         u.setActivo(true);
         try {
+            // Dentro del try: si la BD falla, antes se tomaba como "no existe"
+            if (UsuarioDAO.existeUsuario(usuario.trim())) {
+                return "El nombre de usuario ya está registrado.";
+            }
             UsuarioDAO.insertar(u);
             cargarUsuarios();
             return null;
         } catch (SQLException e) {
+            Bitacora.error("UsuarioController", e);
             return ConexionBD.mensajeError(e);
         }
     }
@@ -83,8 +91,13 @@ public class UsuarioController {
         if (u.getUsuario() == null || u.getUsuario().trim().isEmpty()) {
             return "El nombre de usuario es obligatorio.";
         }
-        if (UsuarioDAO.existeUsuarioOtro(u.getUsuario().trim(), u.getId())) {
-            return "El nombre de usuario ya está registrado.";
+        try {
+            if (UsuarioDAO.existeUsuarioOtro(u.getUsuario().trim(), u.getId())) {
+                return "El nombre de usuario ya está registrado.";
+            }
+        } catch (SQLException e) {
+            Bitacora.error("UsuarioController.actualizar", e);
+            return ConexionBD.mensajeError(e);
         }
         if (nuevaContrasena != null && !nuevaContrasena.isEmpty()
                 && nuevaContrasena.length() < 6) {
@@ -108,6 +121,7 @@ public class UsuarioController {
             cargarUsuarios();
             return null;
         } catch (SQLException e) {
+            Bitacora.error("UsuarioController", e);
             return ConexionBD.mensajeError(e);
         }
     }
@@ -128,6 +142,7 @@ public class UsuarioController {
             cargarUsuarios();
             return null;
         } catch (SQLException e) {
+            Bitacora.error("UsuarioController", e);
             return ConexionBD.mensajeError(e);
         }
     }
@@ -146,6 +161,7 @@ public class UsuarioController {
             cargarUsuarios();
             return null;
         } catch (SQLException e) {
+            Bitacora.error("UsuarioController", e);
             return ConexionBD.mensajeError(e);
         }
     }
@@ -155,11 +171,18 @@ public class UsuarioController {
      * queda ningún otro; null si la operación no deja al sistema sin Ingeniero.
      */
     private String validarNoEsUltimoIngeniero(int id, String mensaje) {
-        Usuario actual = UsuarioDAO.obtenerPorId(id);
-        if (actual == null || !actual.esIngeniero() || !actual.isActivo()) {
-            return null;
+        try {
+            Usuario actual = UsuarioDAO.obtenerPorId(id);
+            if (actual == null || !actual.esIngeniero() || !actual.isActivo()) {
+                return null;
+            }
+            return UsuarioDAO.contarIngenierosActivos() <= 1 ? mensaje : null;
+        } catch (SQLException e) {
+            // Se bloquea la operación con el motivo real: antes un fallo contaba 0
+            // Ingenieros y el mensaje decía "último Ingeniero activo"
+            Bitacora.error("UsuarioController.validarNoEsUltimoIngeniero", e);
+            return ConexionBD.mensajeError(e);
         }
-        return UsuarioDAO.contarIngenierosActivos() <= 1 ? mensaje : null;
     }
 
     /**
@@ -181,6 +204,7 @@ public class UsuarioController {
             }
             return new ResultadoCodigo(codigo, null);
         } catch (SQLException e) {
+            Bitacora.error("UsuarioController", e);
             return new ResultadoCodigo(null, ConexionBD.mensajeError(e));
         }
     }
